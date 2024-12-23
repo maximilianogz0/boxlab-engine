@@ -1,16 +1,18 @@
-import subprocess
+import os
 import sys
+import subprocess
 import importlib
 import time
-import os
 import random
 import string
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+#import matplotlib.pyplot as plt
+#from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
 import pandas as pd
-import ezdxf
+#import ezdxf
 import re
+
+
 
 # AVOID RUNNING THIS CODE
 if __name__ == "__main__":
@@ -18,25 +20,6 @@ if __name__ == "__main__":
     arg = "ERROR: Este código no está pensado para ejecutarse.\n"
     sys.exit(arg)    
 # ========================================================
-
-# ABOUT LIBRARIES
-
-libs_required = [
-                 "ezdxf",
-                 "matplotlib",
-                 "numpy",
-                 "matplotlib",
-                 "tk",
-                 "trash", 
-                 "PyQt5",
-                 "PySimpleGUI",
-                 "pandas"
-                 ]
-
-def install_libs(libraries_list, verbose=True):
-    
-    for each_lib in libraries_list:
-        install_single_lib(each_lib, verbose)
 
 
 def install_single_lib(nombre_libreria, verbose=True):
@@ -66,6 +49,8 @@ def install_single_lib(nombre_libreria, verbose=True):
         if verbose:
             print(f"Error inesperado: {e}")
         return False
+
+
 
 # SOME FUNCTIONS
 

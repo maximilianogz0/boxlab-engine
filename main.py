@@ -1,6 +1,14 @@
-import GUI
+import subprocess
+import sys
 import utility as ut
+import GUI
 import os
+
+# Ejecuta el comando para instalar las librerías desde requirements.txt
+subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+
+
+
 #import data
 #import numpy as np
 #import matplotlib.pyplot as plot
@@ -8,7 +16,7 @@ import os
 #import sketch_module as sk
 #import random
 #import string
-from ezdxf.gfxattribs import GfxAttribs
+#from ezdxf.gfxattribs import GfxAttribs
 # import PySimpleGUI as sg
 
 # ============================================================
@@ -17,7 +25,6 @@ os.system("clear"); print("-> Iniciando el código...\n")
 main_watch = ut.myTime.start()
 
 # Install libs
-ut.install_libs(ut.libs_required, verbose=False)
 
 # ============================================================
 
