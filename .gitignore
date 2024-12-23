@@ -176,3 +176,5 @@ cython_debug/
 # Ignorar archivos Python compilados
 __pycache__/
 *.pyc
+
+/DXF_Blueprints
