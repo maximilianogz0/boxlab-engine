@@ -178,3 +178,4 @@ __pycache__/
 *.pyc
 
 /DXF_Blueprints
+DXF_Blueprints/
