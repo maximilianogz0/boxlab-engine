@@ -85,6 +85,18 @@ class ThieleSmall:
         
         self.Vas_m3 = self.Vas_L/1000
         
+        if self.Qes is None :
+           print(f"""                
+                Qes no fue asignado a través de --_calcular_parametros()--:
+                """)
+         
+            
+        else:
+            print(f"""
+                Para probar --_calcular_parametros()--:
+                Qes: está asignado a {self.Qes}
+                """)
+        
         
 
 
@@ -157,20 +169,30 @@ class boxDimensions:
     
     # wood_thickness_m = user.wood_thickness_mm / 1000  # Convertimos el espesor a metros
 
-    def __init__(self, Speaker):
-        # ThieleSmall._calcular_parametros(Speaker)
+    def __init__(self, Speaker):                
         self.speaker = Speaker
+        
+        # Validar configuraciones del usuario
+        if not hasattr(user, 'ratioDims') or len(user.ratioDims) != 3:
+            raise ValueError("user.ratioDims debe ser una lista o tupla con tres valores.")
+        if not hasattr(user, 'wood_thickness_mm'):
+            raise ValueError("user.wood_thickness_mm no está definido.")
+        if not hasattr(user, 'areInteriorDims'):
+            raise ValueError("user.areInteriorDims no está definido.")
+        
+        
+        # ThieleSmall._calcular_parametros(Speaker)        
         #self.wood_thickness_m = user.wood_thickness_mm / 1000  # Convertimos el espesor a metros
         self.ratioDims = user.ratioDims
         self.areInteriorDims = user.areInteriorDims
-        self.Vb_m3 = None
+        #self.Vb_m3 = None
         
          # Inicializar medidas de cada plancha
         self.frontal_posterior_m = None
         self.superior_inferior_m = None
         self.lateral_m = None
         
-        self.Vb_m3 = self.calcular_Vb_m3()
+        self.Vb_m3 = self.calcular_Vb_m3(self.speaker)
 
 
         
@@ -178,12 +200,20 @@ class boxDimensions:
         # self.calcular_dimensiones_plancha()
     
     def calcular_Vb_m3(self, Speaker:ThieleSmall):
+        if Speaker.Vab_m3 is None:
+            print("Error: Vab_m3 no está configurado.")
+        
+        if Speaker._volumen_altavoz_L is None:
+            print("Error: Volumen de altavoz no calculado.")        
+                
         self.Vb_m3 = Speaker.Vab_m3 + Speaker._volumen_altavoz_L() * (1 / 1.25 if user.useAbsorbing else 1)
         return self.Vb_m3
-
         
 
-    def calcular_dimensiones_plancha(self):
+    def calcular_dimensiones_plancha(self,selected_speaker:ThieleSmall):        
+        if selected_speaker.Vb_m3 is None:
+            print("Error: Vb_m3 no está configurado.")
+        
         # Calcular factor de escalado según volumen y relación de aspecto
         factor =            (self.Vb_m3 / (user.ratioDims[0] * user.ratioDims[1] * user.ratioDims[2])) ** (1/3)
         ancho_base =        user.ratioDims[0] * factor
@@ -199,9 +229,9 @@ class boxDimensions:
 
         else:
             # Si el ratio se refiere a dimensiones exteriores CORREGIIIIIIIIIIIRRRRRRRRR NO ESTA LA FORMULA
-            self.frontal_posterior_m =  (ancho_base + 2*t,  alto_base + 2*t)
-            self.lateral_m =            (profundidad_base,  alto_base + 2*t)
-            self.superior_inferior_m =  (ancho_base,        profundidad_base)
+            self.frontal_posterior_m =  (ancho_base - 2*t,          alto_base - 2*t)
+            self.lateral_m =            (profundidad_base - 2*t,    alto_base - 2*t)
+            self.superior_inferior_m =  (ancho_base - 2*t,          profundidad_base - 2*t)
             
         # Redondear las dimensiones a 1 mm (0.001 m)
         self.frontal_posterior_m    = (round(1000 * self.frontal_posterior_m[0])/1000,  round(1000 * self.frontal_posterior_m[1])/1000)

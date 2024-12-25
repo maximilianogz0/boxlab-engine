@@ -19,18 +19,6 @@ LSDB_TSV_path = "LoudspeakerDatabase_v2.tsv"
 
 df = pd.read_csv(LSDB_TSV_path, delimiter="\t")
 
-"""
-marca = "Eighteen Sound"
-modelo = "10MB600"
-
-indices = df.index[(df["Brand"] == marca) & (df["Model"] == modelo)].tolist()
-
-if indices:
-    # Obtener la fila como un diccionario
-    row = df.loc[indices[0]]
-
-"""
-
 speakers = []
 
 # Iterar sobre las filas del DataFrame
@@ -87,64 +75,71 @@ print(f"Se han agregado {len(speakers)} altavoces a la lista.")
 def assign_speaker(listbox:tk.Listbox, 
                    label_seleccion:tk.StringVar, 
                    df:pd.DataFrame,
+                   prev_Window:tk.Tk|tk.Toplevel,
+                   next_Window:tk.Tk|tk.Toplevel,
                    verbose:bool):
     
-    global thiele_small
-    thiele_small = None
+        print(f"Contenido del DataFrame: {df.head()}, columnas: {df.columns}")
 
-    try:
+    
         # Obtener el altavoz seleccionado del Listbox
         selection_index = listbox.curselection()
-        if selection_index:
-            selected_item = listbox.get(selection_index)
-            # label_seleccion.set(f"Altavoz seleccionado: {selection_index}")
+        print(f"Índice seleccionado: {selection_index} luego de listbox.cureselection() en --assign_speaker()--.")
+        
+        if not selection_index:
+            label_seleccion.set("No se ha seleccionado ningún altavoz en --assign_speaker()-- ni su selection_index.")
+        
+        selected_item = listbox.get(selection_index)
+        print(f"Altavoz seleccionado: {selected_item} en --assign_speaker()--.\n")
 
-            # Dividir correctamente el texto
+        if " - " in selected_item and " " in selected_item.split(" - ")[0]:
             brand_model, _type = selected_item.split(" - ")
             brand, model = brand_model.split(" ", 1)
-
-            # Buscar el altavoz en el DataFrame
-            speaker_data = df.iloc[index]
-
-            # Crear una instancia de ThieleSmall con todos los datos
-            thiele_small = p.ThieleSmall(
-                speaker_model=model,
-                speaker_brand=brand,
-                URL=speaker_data['URL'],
-                Type=speaker_data['Type'],
-                Diameter_inch=speaker_data['Nominal diameter [″]'],
-                Diameter_mm=speaker_data['Nominal diameter [mm]'],
-                SPL_dB=speaker_data['SPL 1W [dB]'],
-                Fs_Hz=speaker_data['fs [Hz]'],
-                Qms=speaker_data['Qms'],
-                Qes=speaker_data['Qes'],
-                Qts=speaker_data['Qts'],
-                Xmax_mm=speaker_data['xmax [mm]'],
-                Power_W=speaker_data['Power [W]'],
-                Pmax_W=speaker_data['Pmax [W]'],
-                Z_ohm=speaker_data['Z [Ω]'],
-                Re_ohm=speaker_data['Re [Ω]'],
-                Le_mH=speaker_data['Le [mH]'],
-                Sd_cm2=speaker_data['Sd [cm²]'],
-                Mms_g=speaker_data['Mms [g]'],
-                Mmd_g=speaker_data['Mmd [g]'],
-                Cms_uN=speaker_data['Cms [µm/N]'],
-                Vas_L=speaker_data['Vas [L]'],
-                Rms=speaker_data['Rms [N·s/m]']
-            )
-            if verbose:
-            # Mostrar la información del altavoz
-                thiele_small.display_spkr_parameters()
-                thiele_small.display_user_settings()
-                thiele_small.display_calc_settings()
-            return thiele_small
         else:
-            label_seleccion.set("No se ha seleccionado ningún altavoz.")
-    except IndexError:
-        label_seleccion.set("No se ha encontrado el altavoz en la base de datos.")
-    except KeyError as e:
-        label_seleccion.set(f"Columna no encontrada: {e}")
-    except ValueError:
-        label_seleccion.set("Error al obtener los datos del altavoz.")
+            label_seleccion.set("Formato del texto no válido en el Listbox.")
+
+        # Buscar el altavoz en el DataFrame
+        speaker_data = df.iloc[selection_index[0]]
+        print(f"\nDatos del altavoz seleccionado: {speaker_data} en --assign_speaker()--.")
+
+        # Crear una instancia de ThieleSmall con todos los datos
+        thiele_small = p.ThieleSmall(
+            speaker_model=model,
+            speaker_brand=brand,
+            URL=speaker_data['URL'],
+            Type=speaker_data['Type'],
+            Diameter_inch=speaker_data['Nominal diameter [″]'],
+            Diameter_mm=speaker_data['Nominal diameter [mm]'],
+            SPL_dB=speaker_data['SPL 1W [dB]'],
+            Fs_Hz=speaker_data['fs [Hz]'],
+            Qms=speaker_data['Qms'],
+            Qes=speaker_data['Qes'],
+            Qts=speaker_data['Qts'],
+            Xmax_mm=speaker_data['xmax [mm]'],
+            Power_W=speaker_data['Power [W]'],
+            Pmax_W=speaker_data['Pmax [W]'],
+            Z_ohm=speaker_data['Z [Ω]'],
+            Re_ohm=speaker_data['Re [Ω]'],
+            Le_mH=speaker_data['Le [mH]'],
+            Sd_cm2=speaker_data['Sd [cm²]'],
+            Mms_g=speaker_data['Mms [g]'],
+            Mmd_g=speaker_data['Mmd [g]'],
+            Cms_uN=speaker_data['Cms [µm/N]'],
+            Vas_L=speaker_data['Vas [L]'],
+            Rms=speaker_data['Rms [N·s/m]']
+        )
         
-    return thiele_small
+        print(f"Objeto retornado por assign_speaker: {thiele_small}, tipo: {type(thiele_small)}")
+
+        if verbose:
+            # Mostrar la información del altavoz
+            thiele_small.display_spkr_parameters()
+            thiele_small.display_user_settings()
+            thiele_small.display_calc_settings()    
+            
+        if not isinstance(thiele_small, p.ThieleSmall):
+            print("Error: El objeto retornado por assign_speaker no es una instancia de ThieleSmall.")
+            
+        return thiele_small    
+    
+    #return None
