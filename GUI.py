@@ -90,7 +90,7 @@ def call_fullWidgets(whichWindow:tk.Tk):
         
         path_label = tk.Label(showResults_Window)
         wdg.interactive_widgets.create_browseDir_button(showResults_Window, 
-                                                        "Guardar",
+                                                        "Buscar y Guardar",
                                                         path_label)
         path_label.pack(pady=wdg.window.std_padding_y)
         #wdg.displays_and_labels.create_label(showResults_Window, "¡Gracias por usar nuestro programa!")

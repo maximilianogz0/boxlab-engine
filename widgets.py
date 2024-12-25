@@ -152,7 +152,7 @@ class interactive_widgets:
                                 bg=     window.bg_color,
                                 fg=     window.highlight_color
                                 )
-        title_label.pack(pady=window.std_padding_y)
+        title_label.pack(pady= 4* window.std_padding_y)
         
     @staticmethod
     def create_button(which_Window, text, command):
@@ -188,23 +188,18 @@ class interactive_widgets:
                              next_Window,
                              call_fullWidgets):
         
-        prev_Window = which_Window
-        label_selection = tk.StringVar()
-
-        # Crear un Label para mostrar la selección
-        label_archivo = tk.Label(which_Window, textvariable=label_selection)
-        label_archivo.pack(pady=window.std_padding_y)
-                        
+        prev_Window = which_Window # Ninguna utilidad. Es solo para salir del paso al eliminar argumentos
+         
         def on_button_click(prev_Window, next_Window):
             global selected_speaker 
             print("Ejecutando on_button_click...")
            
             selected_speaker = assign_speaker(listbox, 
-                                              label_selection, 
+                                              None, 
                                               df,
                                               prev_Window,
                                               next_Window, 
-                                              verbose=False)
+                                              verbose=False) ##REVISAR ESTO. "True" arroja error
             
             print(f"selected_speaker asignado: {selected_speaker}, tipo: {type(selected_speaker)}")
 
@@ -236,19 +231,20 @@ class interactive_widgets:
                                 label:tk.Label):
         
         def on_button_click():
-            #global path
             print("setSave_dirPath llamado")
             path = fd.askdirectory()
             if path:
                 print(f"Los archivos resultantes serán guardados en la ruta: {path}")
-                label.config(text=f"Ruta: {path}")  # Actualiza el texto del Label
-            
+                label.config(   text=f"Los archivos serán guardados en: {path}",
+                                font=(  window.main_font,
+                                        window.main_font_size),
+                                bg=     window.bg_color)            
             #return path ### REVISAR SI ESO ESTÁ BIEN
     
         
         browseDir_button = tk.Button(which_Window, 
                                      text=text, 
-                                     command=on_button_click(),
+                                     command=on_button_click,
                                      font=(window.main_font, 
                                            window.main_font_size)
                                      )
@@ -356,7 +352,6 @@ class window:
         # global header_title, size_as_list, size_as_str, main_font, title_font_size
         pass
                    
-    
     def create_window(self,type:str,should_hide:bool):        
         if type == "main":
             window = tk.Tk()
