@@ -21,14 +21,6 @@ def run_GUI(verbose :bool):
 
 #====================================================================================
 #====================================================================================
-
-#dims = None
-#text_results = None
-#path = None
-#selected_speaker = None
-
-#====================================================================================
-#====================================================================================
         
 window_manager = wdg.window()
 default = wdg.default_values()
@@ -43,7 +35,6 @@ selectYourSpeaker_Window    :tk.Tk = window_manager.create_window(type="main",
 # Inicializa la ventana secundaria
 chooseSettings_Window       :tk.Tk = window_manager.create_window(type="secondary", 
                                                                   should_hide=True)
-
 # Inicializa la ventana de resultados
 showResults_Window          :tk.Tk = window_manager.create_window(type="secondary",
                                                                   should_hide=True)
@@ -67,7 +58,16 @@ def call_fullWidgets(whichWindow:tk.Tk):
         #selected_speaker = None
     
     elif whichWindow == chooseSettings_Window:
-        wdg.interactive_widgets.create_title(chooseSettings_Window, "Seleccione sus ajustes")
+        #wdg.displays_and_labels.create_label(chooseSettings_Window, "Seleccione sus ajustes")
+        tk.Label(chooseSettings_Window, 
+                 text="Seleccione sus ajustes",
+                 font=(wdg.window.title_font, 
+                       wdg.window.title_font_size,
+                       "bold"),
+                 fg=   wdg.window.highlight_color,
+                 bg=   wdg.window.bg_color
+                 ).pack(pady=wdg.window.std_padding_y)
+        
         wdg.interactive_widgets.create_qtc_section(chooseSettings_Window, qtc_var)
         wdg.interactive_widgets.create_ratio_section(chooseSettings_Window, ratio1_var, ratio2_var, ratio3_var)
         wdg.interactive_widgets.create_thickness_section(chooseSettings_Window, thickness_var)
@@ -75,11 +75,25 @@ def call_fullWidgets(whichWindow:tk.Tk):
         wdg.interactive_widgets.create_saveSettings_button(chooseSettings_Window, showResults_Window, qtc_var, thickness_var, absorbing_var, ratio1_var, ratio2_var, ratio3_var)
 
     elif whichWindow == showResults_Window:
-        
+        wdg.displays_and_labels.create_selected_speaker_label(showResults_Window)        
+                    
+        label = tk.Label(chooseSettings_Window, 
+                        text="Utilizar:",
+                        font=( wdg.window.main_font,
+                                wdg.window.main_font_size),
+                        fg=wdg.window.secondary_color,
+                        bg=wdg.window.bg_color)        
+        label.pack(pady=wdg.window.std_padding_y)
+                
         text_results = wdg.displays_and_labels.show_results_as_text()
-        wdg.displays_and_labels.create_label(showResults_Window, "Resultados de las configuraciones:")
-        wdg.displays_and_labels.create_selected_speaker_label(showResults_Window)
         wdg.displays_and_labels.create_label(showResults_Window,text_results)
+        
+        path_label = tk.Label(showResults_Window)
+        wdg.interactive_widgets.create_browseDir_button(showResults_Window, 
+                                                        "Guardar",
+                                                        path_label)
+        path_label.pack(pady=wdg.window.std_padding_y)
+        #wdg.displays_and_labels.create_label(showResults_Window, "¡Gracias por usar nuestro programa!")
 
         
     elif whichWindow is None:
@@ -193,11 +207,12 @@ def show_results_Window_fx():
 
 """
 
-def setSave_dirPath(verbose):
+def setSave_dirPath():
     global path
+    print("Función --setSave_dirPath-- llamada.")
+
     path = fd.askdirectory()
-    if verbose:
-        print(f"Los archivos resultantes serán guardados en la ruta: {path}")
+    print(f"Los archivos resultantes serán guardados en la ruta: {path}")
     return path
 
 # dirPath = setSave_dirPath()

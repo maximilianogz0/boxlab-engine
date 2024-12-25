@@ -92,9 +92,9 @@ def assign_speaker(listbox:tk.Listbox,
         selected_item = listbox.get(selection_index)
         print(f"Altavoz seleccionado: {selected_item} en --assign_speaker()--.\n")
 
-        if " - " in selected_item and " " in selected_item.split(" - ")[0]:
-            brand_model, _type = selected_item.split(" - ")
-            brand, model = brand_model.split(" ", 1)
+        if " - " in selected_item: #and " " in selected_item.split(" - ")[0]:
+            #brand_model, _type = selected_item.split(" - ")
+            brand, model = selected_item.split(" ", 1)
         else:
             label_seleccion.set("Formato del texto no válido en el Listbox.")
 
