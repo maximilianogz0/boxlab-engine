@@ -4,6 +4,7 @@ import utility as ut
 import os
 import user_settings as user
 import math
+# from sketch_module import selected_speaker as ss
 
 
 # AVOID RUNNING
@@ -237,7 +238,7 @@ class boxDimensions:
         self.frontal_posterior_m    = (round(1000 * self.frontal_posterior_m[0])/1000,  round(1000 * self.frontal_posterior_m[1])/1000)
         self.superior_inferior_m    = (round(1000 * self.superior_inferior_m[0])/1000,  round(1000 * self.superior_inferior_m[1])/1000)
         self.lateral_m              = (round(1000 * self.lateral_m[0])/1000,            round(1000 * self.lateral_m[1])/1000)
-        
+                
         return [(1000*self.frontal_posterior_m[0],     1000*self.frontal_posterior_m[1]),
                 (1000*self.lateral_m[0],               1000*self.lateral_m[1]),
                 (1000*self.superior_inferior_m[0],     1000*self.superior_inferior_m[1])

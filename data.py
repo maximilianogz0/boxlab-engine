@@ -103,7 +103,7 @@ def assign_speaker(listbox:tk.Listbox,
         print(f"\nDatos del altavoz seleccionado: {speaker_data} en --assign_speaker()--.")
 
         # Crear una instancia de ThieleSmall con todos los datos
-        thiele_small = p.ThieleSmall(
+        selected_speaker = p.ThieleSmall(
             speaker_model=model,
             speaker_brand=brand,
             URL=speaker_data['URL'],
@@ -129,17 +129,17 @@ def assign_speaker(listbox:tk.Listbox,
             Rms=speaker_data['Rms [N·s/m]']
         )
         
-        print(f"Objeto retornado por assign_speaker: {thiele_small}, tipo: {type(thiele_small)}")
+        print(f"Objeto retornado por assign_speaker: {selected_speaker}, tipo: {type(selected_speaker)}")
 
         if verbose:
             # Mostrar la información del altavoz
-            thiele_small.display_spkr_parameters()
-            thiele_small.display_user_settings()
-            thiele_small.display_calc_settings()    
+            selected_speaker.display_spkr_parameters()
+            selected_speaker.display_user_settings()
+            selected_speaker.display_calc_settings()    
             
-        if not isinstance(thiele_small, p.ThieleSmall):
+        if not isinstance(selected_speaker, p.ThieleSmall):
             print("Error: El objeto retornado por assign_speaker no es una instancia de ThieleSmall.")
             
-        return thiele_small    
+        return selected_speaker    
     
     #return None

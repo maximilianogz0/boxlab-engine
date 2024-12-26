@@ -26,16 +26,18 @@ if __name__ == "__main__":
     sys.exit(arg)    
 # ========================================================
 
+# selected_speaker    = None
 
 DXF_filename        :str = ut.DXF_filename
 blueprint_folder    :str = "DXF_Blueprints"
 
 margin_mm           :int = 65 #Placa Base Sierra Caladora
 
-cutout_mm           :int = data.speaker.Diameter_mm
+cutout_mm           :int = None # Inicialización. Se asigna en widgets/interactive.../create_saveSettings_button()/save_and_next
 
 # Crear un archivo DXF
-def new_DXF(filename, verbose: bool):
+def new_DXF(filename, 
+            verbose: bool):
     # Crear el directorio si no existe
     os.makedirs(blueprint_folder, exist_ok=True)
 
@@ -48,11 +50,12 @@ def new_DXF(filename, verbose: bool):
         print(f"Archivo guardado en: {file_path}")
     return doc
 
-main_sketch = new_DXF(filename=DXF_filename, verbose=False)
 
 
 # Función para visualizar el archivo DXF como un gráfico usando Matplotlib
-def display_DXF_plot(file_path: str, output_image_path: str, verbose: bool):
+def display_DXF_plot(file_path: str, 
+                     output_image_path: str, 
+                     verbose: bool):
     """
     Visualiza un archivo DXF como una imagen usando Matplotlib.
 
@@ -201,7 +204,10 @@ def draw_rectangles(msp, rectangles, margin_mm=margin_mm, atribs=None):
 
 """
 
-def create_rectangle_block(doc, block_name, width, height):
+def create_rectangle_block(doc, 
+                           block_name, 
+                           width, 
+                           height):
     """
     Crea un bloque con un rectángulo de dimensiones dadas.
 
@@ -226,7 +232,10 @@ def create_rectangle_block(doc, block_name, width, height):
     return block
 
 
-def draw_rectangles_as_blocks(msp, doc, rectangles, margin_mm):
+def draw_rectangles_as_blocks(msp, 
+                              doc, 
+                              rectangles, 
+                              margin_mm):
     """
     Crea y dibuja rectángulos como bloques en el espacio modelo.
 
@@ -260,7 +269,12 @@ def draw_rectangles_as_blocks(msp, doc, rectangles, margin_mm):
         block_counter += 1  # Incrementar el contador para el próximo bloque
 
 
-def create_dxf_with_rectangles(doc, msp, file_path, rectangles, margin_mm, verbose):
+def create_dxf_with_rectangles(doc, 
+                               msp, 
+                               file_path, 
+                               rectangles, 
+                               margin_mm, 
+                               verbose):
     """
     Crea un archivo DXF con una serie de rectángulos con márgenes entre ellos.
 
@@ -302,7 +316,16 @@ def create_dxf_with_rectangles(doc, msp, file_path, rectangles, margin_mm, verbo
     
     if verbose: print(f"DXF file with rectangles saved to {file_path}")
 
-def run_SKETCH():
+def run_SKETCH(selected_speaker):
+    #global selected_speaker
+    box = params.boxDimensions(selected_speaker)
+
+    main_sketch = new_DXF(filename=DXF_filename, 
+                          verbose=False)
+
+    if not isinstance(selected_speaker, params.ThieleSmall):
+        print("Error: 'selected_speaker' no es una instancia de ThieleSmall.")
+                
     # print(main_box.calcular_dimensiones_plancha())
     #main_sketch.layers.add("ELEMENTOS",color=3)
 
@@ -314,20 +337,26 @@ def run_SKETCH():
     # point = msp.add_point((10,10),dxfattribs=atribs)
     circle = msp.add_circle((5,15),radius=1, dxfattribs=atribs)
 
-    # CORREGIR EL LLAMADO DEL ALTAVOZ PRIMERO
-    rectangles_array = params.boxDimensions.calcular_dimensiones_plancha(data.thiele_small)
+
+    rectangles_array = box.calcular_dimensiones_plancha(selected_speaker)
     rectangles_array = rectangles_array[:] = [item for item in rectangles_array for _ in range(2)]
 
 
 
-    create_dxf_with_rectangles(main_sketch,msp,f"{blueprint_folder}/{DXF_filename}", rectangles_array,margin_mm,verbose=False)
+    create_dxf_with_rectangles(main_sketch,
+                               msp,
+                               f"{blueprint_folder}/{DXF_filename}", 
+                               rectangles_array,
+                               margin_mm,
+                               verbose=False)
 
     main_sketch.save()
 
 
     # Visualizar el archivo DXF como imagen
     output_image_path = f"{blueprint_folder}/{ut.PNG_filename}"
-    display_DXF_plot(f"{blueprint_folder}/{DXF_filename}", output_image_path,verbose=False)
+    display_DXF_plot(f"{blueprint_folder}/{DXF_filename}", 
+                     output_image_path,verbose=False)
     
 """"
 def add_cutout(prueba1,prueba2):
