@@ -81,6 +81,42 @@ class interactive_widgets:
                             padx=window.std_padding_x)
         
 
+    @staticmethod
+    def create_backpanel_section(which_Window, backPanel_var):
+        """
+        Crea una sección para ingresar el espesor del Backpanel.
+        
+        Args:
+            which_Window: La ventana donde se colocará la sección.
+            backPanel_var: Una variable de control (tk.IntVar) para almacenar el valor ingresado.
+        """
+        
+        # Etiqueta para el espesor del Backpanel
+        backpanel_label = tk.Label(
+            which_Window,
+            text="Diámetro para el Backpanel (mm):",
+            bg=window.bg_color,
+            font=(window.main_font, 
+                window.main_font_size),
+            justify="center"
+        )
+        backpanel_label.pack(pady=window.std_padding_y,
+                            padx=window.std_padding_x)
+        
+        # Spinbox para ingresar el espesor del Backpanel
+        backpanel_spinbox = ttk.Spinbox(
+            which_Window,
+            from_=1,       # Valor mínimo
+            to=100,         # Valor máximo
+            increment=1,   # Incremento por paso
+            textvariable=backPanel_var,
+            background=window.bg_color,
+            width=10,
+            font=(window.main_font, window.main_font_size),
+            justify="center"
+        )
+        backpanel_spinbox.pack(pady=window.std_padding_y,
+                            padx=window.std_padding_x)
 
 
 
@@ -150,7 +186,8 @@ class interactive_widgets:
                                    ratio1_var, 
                                    ratio2_var, 
                                    ratio3_var,
-                                   cutout_var):
+                                   cutout_var,
+                                   backPanel_var):
 
         prev_Window = which_Window
         
@@ -161,6 +198,7 @@ class interactive_widgets:
             user.useAbsorbing       = bool(absorbing_var.get())
             user.ratioDims          = (float(ratio1_var.get()), float(ratio2_var.get()), float(ratio3_var.get()))    
             sk.cutout_mm            = int(cutout_var.get())  # Guardar el diámetro del cutout
+            sk.backPanel_mm         = int(backPanel_var.get())  # Guardar el diámetro del cutout
 
             
             window.close_and_next(prev_Window, next_Window) # en este metodo ya se llaman los widgets de la siguiente ventana
@@ -342,7 +380,8 @@ class interactive_widgets:
                                     font=(  window.main_font,
                                             window.main_font_size),
                                     bg=     window.bg_color,
-                                    fg=     window.secondary_color)
+                                    fg=     window.secondary_color,
+                                    pady=   window.std_padding_y *4)
             
             ## CORRE ESTO AL PRESIONAR BOTON
             setSave_dirPath()
@@ -494,11 +533,12 @@ class window:
     
 class default_values:
 
-        qtc_var =      "0.707"
+        qtc_var =       "0.707"
         thickness_var = "12"
         absorbing_var = 0
         ratio1_var =    "1"
         ratio2_var =    "1"
         ratio3_var =    "1"
         cutout_var =    "150"
+        backPanel_var = "50"
 

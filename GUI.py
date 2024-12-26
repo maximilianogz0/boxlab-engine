@@ -84,8 +84,9 @@ def call_fullWidgets(whichWindow:tk.Tk):
         wdg.interactive_widgets.create_ratio_section(chooseSettings_Window, ratio1_var, ratio2_var, ratio3_var)
         wdg.interactive_widgets.create_thickness_section(chooseSettings_Window, thickness_var)
         wdg.interactive_widgets.create_cutout_section(chooseSettings_Window, cutout_var)
+        wdg.interactive_widgets.create_backpanel_section(chooseSettings_Window, backPanel_var)
         wdg.interactive_widgets.create_absorbing_checkbox(chooseSettings_Window, absorbing_var)
-        wdg.interactive_widgets.create_saveSettings_button(chooseSettings_Window, showResults_Window, qtc_var, thickness_var, absorbing_var, ratio1_var, ratio2_var, ratio3_var, cutout_var)
+        wdg.interactive_widgets.create_saveSettings_button(chooseSettings_Window, showResults_Window, qtc_var, thickness_var, absorbing_var, ratio1_var, ratio2_var, ratio3_var, cutout_var,backPanel_var)
 
     elif whichWindow == showResults_Window:
         wdg.interactive_widgets.create_title(showResults_Window, f"{wdg.selected_speaker.speaker_brand} {wdg.selected_speaker.speaker_model}")        
@@ -126,6 +127,7 @@ ratio1_var =        tk.StringVar(value=wdg.default_values.ratio1_var)  # Opción
 ratio2_var =        tk.StringVar(value=wdg.default_values.ratio2_var)  # Opción por defecto
 ratio3_var =        tk.StringVar(value=wdg.default_values.ratio3_var)  # Opción por defecto
 cutout_var =        tk.StringVar(value=wdg.default_values.cutout_var)
+backPanel_var =     tk.StringVar(value=wdg.default_values.backPanel_var)
 
 # ====================================================================================
 # ====================================================================================

@@ -34,6 +34,7 @@ blueprint_folder    :str = "DXF_Blueprints"
 margin_mm           :int = 65 #Placa Base Sierra Caladora
 
 cutout_mm           :int = None # Inicialización. Se asigna en widgets/interactive.../create_saveSettings_button()/save_and_next
+backPanel_mm        :int = None # Inicialización. Se asigna en widgets/interactive.../create_saveSettings_button()/save_and_next
 
 # Crear un archivo DXF
 def new_DXF(filename, 
@@ -154,56 +155,6 @@ def display_DXF_plot(file_path: str,
         print(f"DXF plot saved to {output_image_path}")
 
 
-
-"""    
-def draw_rectangles(msp, rectangles, margin_mm=margin_mm, atribs=None):
-"""
-"""
-    Dibuja una serie de rectángulos en el espacio modelo con un margen especificado.
-
-    :param msp: Espacio modelo de `ezdxf`
-    :param rectangles: Lista de dimensiones [(ancho, alto), ...]
-    :param margin: Margen entre rectángulos
-    :param atribs: Atributos gráficos para los rectángulos
-    """
-"""
-    x_offset, y_offset = 0, 0  # Desplazamiento inicial
-    max_row_height = 0         # Altura máxima de la fila actual
-
-    for width, height in rectangles:
-        # Primer rectángulo
-        p1 = (x_offset, y_offset)
-        p2 = (x_offset + width, y_offset)
-        p3 = (x_offset + width, y_offset + height)
-        p4 = (x_offset, y_offset + height)
-
-        # Dibujar el primer rectángulo como una polilínea cerrada
-        msp.add_lwpolyline([p1, p2, p3, p4, p1], close=True, dxfattribs=atribs)
-
-        # Desplazar para el segundo rectángulo
-        x_offset += width + margin_mm  # Desplazar a la derecha
-
-        # Segundo rectángulo (con las mismas dimensiones)
-        p1 = (x_offset, y_offset)
-        p2 = (x_offset + width, y_offset)
-        p3 = (x_offset + width, y_offset + height)
-        p4 = (x_offset, y_offset + height)
-
-        # Dibujar el segundo rectángulo como una polilínea cerrada
-        msp.add_lwpolyline([p1, p2, p3, p4, p1], close=True, dxfattribs=atribs)
-
-        # Actualizar el desplazamiento horizontal
-        x_offset += width + margin_mm
-        max_row_height = max(max_row_height, height)
-
-        # Si el siguiente par de rectángulos no cabe en la fila actual, saltar a la siguiente fila
-        if x_offset + width > 500:  # Supongamos un límite de 500 unidades (ajustable)
-            x_offset = 0
-            y_offset += max_row_height + margin_mm
-            max_row_height = 0
-
-"""
-
 def create_rectangle_block(doc, 
                            block_name, 
                            width, 
@@ -261,7 +212,7 @@ def draw_rectangles_as_blocks(msp,
         max_row_height = max(max_row_height, height)
 
         # Si el siguiente rectángulo no cabe en la fila actual, saltar a la siguiente fila
-        if x_offset + width > 500:  # Supongamos un límite de 500 unidades (ajustable)
+        if x_offset + width > 297:  # Supongamos un límite de 500 unidades (ajustable)
             x_offset = 0
             y_offset += max_row_height + margin_mm
             max_row_height = 0
@@ -316,10 +267,127 @@ def create_dxf_with_rectangles(doc,
     
     if verbose: print(f"DXF file with rectangles saved to {file_path}")
 
+def add_cutout( msp, 
+                rectangles, 
+                cutout_mm:int, 
+                layer_name="CírculoCentro"):
+    """
+    Dibuja un círculo en el centro del primer rectángulo basado en el diámetro especificado.
+    
+    :param msp: Espacio modelo de `ezdxf`.
+    :param rectangles: Lista de dimensiones [(ancho, alto), ...].
+    :param cutout_mm: Diámetro del círculo.
+    :param layer_name: Nombre de la capa para el círculo.
+    """
+    if not rectangles:
+        print("Error: La lista de rectángulos está vacía.")
+        return
+
+    # Tomar las dimensiones del primer rectángulo
+    width, height = rectangles[0]
+    
+    max_diameter_width  :int = width - 4 * user_settings.wood_thickness_mm
+    max_diameter_height :int = height - 4 * user_settings.wood_thickness_mm
+
+    
+    if cutout_mm >= max_diameter_width or cutout_mm >= max_diameter_height:
+        print(
+            f"{user_settings.wood_thickness_mm}\n"
+            f"Error: El diámetro del círculo ({cutout_mm} mm) excede los límites permitidos.\n"
+            f"Dimensiones del rectángulo: ancho={width} mm, alto={height} mm.\n"
+            f"Límites máximos: diámetro ancho={max_diameter_width} mm, diámetro alto={max_diameter_height} mm.")  
+        return
+
+
+    # Calcular el centro del rectángulo
+    center_x = width / 2
+    center_y = height / 2
+
+    # Calcular el radio del círculo
+    radius = cutout_mm / 2
+
+    # Dibujar el círculo en el centro del rectángulo
+    msp.add_circle((center_x, center_y), radius, dxfattribs={"layer": layer_name})
+
+    print(f"Círculo dibujado en el centro del primer rectángulo: Centro=({center_x}, {center_y}), Radio={radius}")
+
+def add_backPanel(msp, 
+                  rectangles, 
+                  shape_type, 
+                  shape_dimensions, 
+                  layer_name="BackPanel",
+                  status_label=None):
+    """
+    Agrega una figura (rectángulo, cuadrado o círculo) al centro del segundo rectángulo.
+
+    :param msp: Espacio modelo de `ezdxf`.
+    :param rectangles: Lista de dimensiones [(ancho, alto), ...].
+    :param shape_type: Tipo de figura a dibujar ('rectangle', 'square', 'circle').
+    :param shape_dimensions: Dimensiones de la figura (para 'rectangle' [width, height], 
+                              para 'square' [side], para 'circle' [diameter]).
+    :param layer_name: Nombre de la capa para la figura.
+    :param status_label: (Opcional) Widget de tkinter para mostrar mensajes en la ventana.
+    """
+    if len(rectangles) < 2:
+        message = "Error: No hay suficientes rectángulos en la lista para procesar el segundo."
+        print(message)
+        if status_label:
+            status_label.config(text=message)
+        return
+
+    # Obtener las dimensiones del segundo rectángulo
+    width, height = rectangles[1]
+
+    # Calcular el centro del segundo rectángulo considerando el desplazamiento acumulado
+    x_offset = sum(rect[0] + margin_mm for rect in rectangles[:1])  # Acumular desplazamientos
+    y_offset = 0  # No hay desplazamiento vertical acumulado en este caso
+
+    center_x = x_offset + width / 2
+    center_y = y_offset + height / 2
+
+    # Verificar y dibujar la figura correspondiente
+    if shape_type == "rectangle" and len(shape_dimensions) == 2:
+        rect_width, rect_height = shape_dimensions
+        p1 = (center_x - rect_width / 2, center_y - rect_height / 2)
+        p2 = (center_x + rect_width / 2, center_y - rect_height / 2)
+        p3 = (center_x + rect_width / 2, center_y + rect_height / 2)
+        p4 = (center_x - rect_width / 2, center_y + rect_height / 2)
+        msp.add_lwpolyline([p1, p2, p3, p4, p1], close=True, dxfattribs={"layer": layer_name})
+        message = f"Rectángulo agregado al centro del segundo rectángulo: {p1}, {p2}, {p3}, {p4}"
+        print(message)
+        if status_label:
+            status_label.config(text=message)
+
+    elif shape_type == "square" and len(shape_dimensions) == 1:
+        side = shape_dimensions[0]
+        p1 = (center_x - side / 2, center_y - side / 2)
+        p2 = (center_x + side / 2, center_y - side / 2)
+        p3 = (center_x + side / 2, center_y + side / 2)
+        p4 = (center_x - side / 2, center_y + side / 2)
+        msp.add_lwpolyline([p1, p2, p3, p4, p1], close=True, dxfattribs={"layer": layer_name})
+        message = f"Cuadrado agregado al centro del segundo rectángulo: {p1}, {p2}, {p3}, {p4}"
+        print(message)
+        if status_label:
+            status_label.config(text=message)
+
+    elif shape_type == "circle" and len(shape_dimensions) == 1:
+        radius = shape_dimensions[0] / 2
+        msp.add_circle((center_x, center_y), radius, dxfattribs={"layer": layer_name})
+        message = f"Círculo agregado al centro del segundo rectángulo: Centro=({center_x}, {center_y}), Radio={radius}"
+        print(message)
+        if status_label:
+            status_label.config(text=message)
+
+    else:
+        # Si el tipo de figura no es válido
+        message = "Forma omitida: tipo no definido o inválido."
+        print(message)
+        if status_label:
+            status_label.config(text=message)
+
 def run_SKETCH(selected_speaker):
     #global selected_speaker
     box = params.boxDimensions(selected_speaker)
-
     main_sketch = new_DXF(filename=DXF_filename, 
                           verbose=False)
 
@@ -334,10 +402,6 @@ def run_SKETCH(selected_speaker):
     atribs = GfxAttribs(layer="MyLayer")
 
 
-    # point = msp.add_point((10,10),dxfattribs=atribs)
-    circle = msp.add_circle((5,15),radius=1, dxfattribs=atribs)
-
-
     rectangles_array = box.calcular_dimensiones_plancha(selected_speaker)
     rectangles_array = rectangles_array[:] = [item for item in rectangles_array for _ in range(2)]
 
@@ -350,6 +414,20 @@ def run_SKETCH(selected_speaker):
                                margin_mm,
                                verbose=False)
 
+    add_cutout(msp, 
+               rectangles_array, 
+               cutout_mm)
+    
+    print(cutout_mm)
+    
+    add_backPanel(  msp=msp,
+                    rectangles=rectangles_array,
+                    shape_type="circle",  # Puede ser 'rectangle', 'square', o 'circle'
+                    shape_dimensions=[50],  # Cambiar según el tipo de figura
+                    layer_name="BackPanel",
+                    status_label=None  # Widget opcional para mensajes en GUI
+                )
+    
     main_sketch.save()
 
 
