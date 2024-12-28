@@ -1,4 +1,6 @@
 import ezdxf as dxf
+from ezdxf.enums import TextEntityAlignment
+
 import sys
 import utility as ut
 import os
@@ -517,7 +519,38 @@ def add_backPanel(msp,
         if status_label:
             status_label.config(text=message)
 
+def add_scale_reference_line(msp, margin=10, length_mm=100, layer_name="ScaleReference"):
+    """
+    Agrega una línea de referencia al espacio modelo.
 
+    :param msp: Espacio modelo de `ezdxf`.
+    :param margin: Margen desde el rectángulo principal.
+    :param length_mm: Longitud de la línea en milímetros.
+    :param layer_name: Nombre de la capa para la línea de referencia.
+    """
+    # Coordenadas iniciales de la línea
+    x_start = 0
+    y_start = -margin  # Debajo del primer rectángulo
+    x_end = length_mm
+    y_end = -margin  # Misma altura para una línea horizontal
+
+    # Dibujar la línea
+    msp.add_line((x_start, y_start), (x_end, y_end), dxfattribs={"layer": layer_name})
+
+    # Coordenadas para el texto (centrado bajo la línea)
+    text_x = (x_start + x_end) / 2  # Centro de la línea
+    text_y = y_start - 10           # Ajustar el texto más abajo de la línea
+
+    # Añadir el texto
+    msp.add_text(
+        "10 cm",
+        dxfattribs={
+            "layer": layer_name,
+            "height": 50,  # Tamaño del texto en mm
+        }
+    ).set_placement((text_x, text_y), align=TextEntityAlignment.MIDDLE_CENTER)
+
+    print(f"Línea de referencia de escala añadida: inicio=({x_start}, {y_start}), fin=({x_end}, {y_end}), longitud={length_mm} mm")
 
 def save_drawing_info(folder_path, file_name, drawing_data):
     os.makedirs(folder_path, exist_ok=True)
@@ -652,7 +685,8 @@ def run_SKETCH(selected_speaker, save_dir):
                     status_label=None  # Widget opcional para mensajes en GUI
                 )
     
-    
+    add_scale_reference_line(msp, margin=20, length_mm=100)
+
 
 
 

@@ -95,7 +95,7 @@ class interactive_widgets:
         # Etiqueta para el espesor del Backpanel
         backpanel_label = tk.Label(
             which_Window,
-            text="Diámetro para el Backpanel (mm):",
+            text="Diámetro para el panel trasero (mm):",
             bg=window.bg_color,
             font=(window.main_font, 
                 window.main_font_size),
@@ -127,7 +127,7 @@ class interactive_widgets:
     @staticmethod
     def create_absorbing_checkbox(which_Window, absorbing_var):
         absorbing_checkbox = tk.Checkbutton(which_Window, 
-                                            text="Usar absorbente acústico", 
+                                            text="Utilizar relleno", 
                                             variable=absorbing_var,
                                             bg=window.bg_color,
                                             font=(window.main_font, 
@@ -425,7 +425,7 @@ class interactive_widgets:
             file.write(f"Papel recomendado: {drawing_data['paper_type']}\n")
             file.write(f"Orientación: {drawing_data['orientation']}\n")
             file.write("Detalles adicionales:\n")
-            file.write(f"Número de rectángulos: {drawing_data.get('rectangles_count', 'N/A')}\n")
+            #file.write(f"Número de rectángulos: {drawing_data.get('rectangles_count', 'N/A')}\n")
             file.write(f"Margen utilizado: {drawing_data.get('margin', 'N/A')} mm\n")
 
         print(f"Información del dibujo guardada en: {file_path}")
@@ -579,9 +579,9 @@ class default_values:
         qtc_var =       "0.707"
         thickness_var = "12"
         absorbing_var = 0
-        ratio1_var =    "1"
+        ratio1_var =    "1.6"
         ratio2_var =    "1"
-        ratio3_var =    "1"
+        ratio3_var =    "0.6"
         cutout_var =    "93"
         backPanel_var = "50"
 

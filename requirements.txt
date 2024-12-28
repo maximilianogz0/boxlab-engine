@@ -8,3 +8,4 @@ tk
 trash
 PyQt5
 PySimpleGUI
+pyinstaller
