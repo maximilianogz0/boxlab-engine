@@ -7,6 +7,7 @@ import params
 from tkinter import filedialog as fd
 import sketch_module as sk
 import math
+import os
 
 
 global qtc_var, thickness_var, absorbing_var, ratio1_var, ratio2_var, ratio3_var
@@ -384,8 +385,9 @@ class interactive_widgets:
                                     pady=   window.std_padding_y *4)
             
             ## CORRE ESTO AL PRESIONAR BOTON
+                os.makedirs(path, exist_ok=True)
+                sk.run_SKETCH(selected_speaker,save_dir=path)
             setSave_dirPath()
-            sk.run_SKETCH(selected_speaker)
                        
     
         
@@ -397,7 +399,48 @@ class interactive_widgets:
                                      )
         browseDir_button.pack(pady=window.std_padding_y)
         return browseDir_button
+    
+
+    def save_drawing_info(folder_path, file_name, drawing_data):
+        """
+        Guarda información del dibujo en un archivo de texto.
+
+        :param folder_path: Ruta de la carpeta donde se guardará el archivo.
+        :param file_name: Nombre del archivo.
+        :param drawing_data: Diccionario con la información del dibujo.
+            Ejemplo: {
+                "total_width": 685.0,
+                "total_height": 451.0,
+                "paper_type": "A1",
+                "orientation": "horizontal"
+            }
+        """
+        
+        os.makedirs(folder_path, exist_ok=True)  # Asegurar que la carpeta existe
+        file_path = os.path.join(folder_path, file_name)
+
+        with open(file_path, "w") as file:
+            file.write("Información del dibujo:\n")
+            file.write(f"Tamaño total: {drawing_data['total_width']} mm x {drawing_data['total_height']} mm\n")
+            file.write(f"Papel recomendado: {drawing_data['paper_type']}\n")
+            file.write(f"Orientación: {drawing_data['orientation']}\n")
+            file.write("Detalles adicionales:\n")
+            file.write(f"Número de rectángulos: {drawing_data.get('rectangles_count', 'N/A')}\n")
+            file.write(f"Margen utilizado: {drawing_data.get('margin', 'N/A')} mm\n")
+
+        print(f"Información del dibujo guardada en: {file_path}")
+        
+        
+        drawing_data_txt = f""
+        
+    
             
+            
+            
+            
+            
+            
+
 class displays_and_labels:
 
     def create_label(which_Window, text):
@@ -539,6 +582,6 @@ class default_values:
         ratio1_var =    "1"
         ratio2_var =    "1"
         ratio3_var =    "1"
-        cutout_var =    "150"
+        cutout_var =    "93"
         backPanel_var = "50"
 

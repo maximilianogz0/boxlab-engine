@@ -87,17 +87,28 @@ def assign_speaker(listbox:tk.Listbox,
         print(f"Índice seleccionado: {selection_index} luego de listbox.cureselection() en --assign_speaker()--.")
         
         if not selection_index:
-            label_seleccion.set("No se ha seleccionado ningún altavoz en --assign_speaker()-- ni su selection_index.")
-        
+            if label_seleccion:  # Verificar si label_seleccion está inicializado
+                label_seleccion.set("No se ha seleccionado ningún altavoz en --assign_speaker()-- ni su selection_index.")
+            print("Error: No se ha seleccionado ningún altavoz.")
+            return None
+
         selected_item = listbox.get(selection_index)
         print(f"Altavoz seleccionado: {selected_item} en --assign_speaker()--.\n")
 
-        if " - " in selected_item: #and " " in selected_item.split(" - ")[0]:
-            #brand_model, _type = selected_item.split(" - ")
-            brand, model = selected_item.split(" ", 1)
-        else:
-            label_seleccion.set("Formato del texto no válido en el Listbox.")
-
+        try:
+            if " - " in selected_item:
+                brand, model = selected_item.split(" - ")[0].split(" ", 1)
+            else:
+                if label_seleccion:
+                    label_seleccion.set("Formato del texto no válido en el Listbox.")
+                print("Error: Formato del texto no válido en el Listbox.")
+                return None
+        except Exception as e:
+            print(f"Error al procesar el texto seleccionado: {e}")
+            if label_seleccion:
+                label_seleccion.set("Error al procesar el texto seleccionado.")
+            return None
+        
         # Buscar el altavoz en el DataFrame
         speaker_data = df.iloc[selection_index[0]]
         print(f"\nDatos del altavoz seleccionado: {speaker_data} en --assign_speaker()--.")

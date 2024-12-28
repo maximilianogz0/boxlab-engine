@@ -50,6 +50,7 @@ def install_single_lib(nombre_libreria, verbose=True):
             print(f"Error inesperado: {e}")
         return False
 
+LSDB_TSV_path = "LoudspeakerDatabase.tsv"
 
 
 # SOME FUNCTIONS
@@ -61,6 +62,8 @@ def setFileName() -> str:
 
 DXF_filename    :str = f"DXF_random_{fixed_randomcase}.dxf"
 PNG_filename    :str = f"PNG_random_{fixed_randomcase}.png"
+TXT_filename    :str = f"PNG_random_{fixed_randomcase}.txt"
+PDF_filename    :str = f"PNG_random_{fixed_randomcase}.pdf"
 
 def open_folder(main_window, listbox, label_seleccion, extension):
     """
@@ -111,10 +114,6 @@ class myTime:
         print("El código ha finalizado. :)\n")
 
 # PROBANDO =================================================================
-
-# Ruta al archivo TSV
-LSDB_TSV_path = "LoudspeakerDatabase.tsv"
-
 
 def open_tsv_file(main_window, listbox, label_seleccion):
     """
