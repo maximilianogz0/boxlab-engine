@@ -11,6 +11,7 @@ import tkinter as tk
 import pandas as pd
 #import ezdxf
 import re
+import ANSI_colors as colors
 
 
 
@@ -112,7 +113,7 @@ class myTime:
         duracion = time.time() - start
         
         print(f"\nDuración del código: {1000*duracion:.2f} milisegundos.")
-        print("El código ha finalizado. :)\n")
+        print(f"{colors.GREEN}El código ha finalizado. :){colors.RESET}\n")
 
 # PROBANDO =================================================================
 

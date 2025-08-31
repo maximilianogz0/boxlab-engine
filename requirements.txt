@@ -7,3 +7,7 @@ trash
 PySimpleGUI
 pyinstaller
 PySide6
+tesseract
+opencv-python
+pillow
+pytesseract
