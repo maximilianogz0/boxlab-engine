@@ -110,7 +110,8 @@ class myTime:
     
     def stop(start):
         duracion = time.time() - start
-        print(f"Duración del código: {1000*duracion:.2f} milisegundos.")
+        
+        print(f"\nDuración del código: {1000*duracion:.2f} milisegundos.")
         print("El código ha finalizado. :)\n")
 
 # PROBANDO =================================================================

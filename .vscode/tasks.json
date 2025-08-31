@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run main.py",
+            "type": "shell",
+            "command": "python",
+            "args": ["main.py"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",      // Siempre muestra el terminal al ejecutar
+                "clear": true,           // Limpia el terminal antes de cada ejecución
+                "panel": "dedicated"    // Usa un terminal dedicado para esta tarea
+                //"close": true            // Cierra el terminal automáticamente al finalizar
+            },
+            "problemMatcher": []
+        }
+    ]
+}

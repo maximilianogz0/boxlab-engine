@@ -3,9 +3,7 @@ numpy
 pandas
 PyQt5
 ezdxf
-numpy
-tk
 trash
-PyQt5
 PySimpleGUI
 pyinstaller
+PySide6
