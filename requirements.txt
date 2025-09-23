@@ -11,3 +11,4 @@ tesseract
 opencv-python
 pillow
 pytesseract
+openpyxl
