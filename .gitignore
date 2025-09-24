@@ -179,3 +179,9 @@ __pycache__/
 
 /DXF_Blueprints
 DXF_Blueprints/
+allfiles.txt
+big_hashes.txt
+paths_over_100.txt
+paths_over_50.txt
+big_over_100_hash_size.txt
+bigfiles_paths.txt
