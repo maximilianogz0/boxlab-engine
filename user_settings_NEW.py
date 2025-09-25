@@ -1,3 +1,4 @@
+#user_settings_new.py
 # Parametros ambientales
 rho0_kgm3   = 1.2 # Densidad Aire
 c           = 343 # Velocidad Aire
@@ -8,8 +9,8 @@ Qtc = NotImplemented    # Ajuste
 Rg_ohm = 0.12   # Resistencia CC del amplificador
 
 DATA_SOURCE = "DIBIRAMA"   # "LSDB" | "DIBIRAMA"
-DIBIRAMA_INDEX_XLSX = "indice_TS_FRD.xlsx"
-#DIBIRAMA_INDEX_CSV  = "indice_TS_FRD.csv"
+DIBIRAMA_INDEX_XLSX = "loudspeaker_databases/indice_TS_FRD.xlsx"
+#DIBIRAMA_INDEX_CSV  = "loudspeaker_databases/indice_TS_FRD.csv"
 #DIBIRAMA_SHEET      = "prueba"
 
 

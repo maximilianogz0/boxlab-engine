@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#freq_visualizer.py
 import os
 import glob
 import tkinter as tk

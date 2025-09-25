@@ -17,6 +17,7 @@ main_watch = ut.myTime.start()
 BASE_DB = Path("loudspeaker_databases/dibirama_LOUDSPEAKER_DB")
 
 CARPETA_TS = BASE_DB / "TS_Params"  # Excel por modelo
+
 FRD_ROOTS = [
     BASE_DB / "FULLRANGE_files",
     BASE_DB / "MIDWOOFER_files",
@@ -34,8 +35,8 @@ def abs_from_rel(s: str) -> Path:
     p = Path(s)
     return (BASE_DB / p) if not p.is_absolute() else p
 
-SALIDA_IDX_XLSX = Path("indice_TS_FRD.xlsx")
-#SALIDA_IDX_CSV  = Path("indice_TS_FRD.csv")
+SALIDA_IDX_XLSX = Path("loudspeaker_databases/indice_TS_FRD.xlsx")
+#SALIDA_IDX_CSV  = Path("loudspeaker_databases/indice_TS_FRD.csv")
 SALIDA_PARES    = Path("pares_enlazados")
 CREAR_SYMLINKS  = True
 
@@ -178,6 +179,9 @@ def main():
         })        
 
     df = pd.DataFrame(filas)
+    # Agregar prefijo 'loudspeaker_databases/' a las rutas antes de exportar
+    df["Ruta_TS"] = f"loudspeaker_databases/dibirama_LOUDSPEAKER_DB/" + df["Ruta_TS"].astype(str)
+    df["Ruta_FRD"] = f"loudspeaker_databases/dibirama_LOUDSPEAKER_DB/" + df["Ruta_FRD"].astype(str)
     df["__has_FRD"] = df["Ruta_FRD"].ne("")
     df = df.sort_values(["__has_FRD","Modelo_base"], ascending=[False, True], kind="stable").drop(columns="__has_FRD")
 
@@ -217,6 +221,8 @@ def main():
     
     if args.check > 0:
         check_random_pairs(df, args.check)
+
+
 
 
 if __name__ == "__main__":

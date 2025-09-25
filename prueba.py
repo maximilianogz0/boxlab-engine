@@ -14,8 +14,7 @@ import ANSI_colors as colors
 from pathlib import Path
 from ts_reader import read_ts_xlsx
 from acoustics import FRDPlot, mag_limits_from_frd_paths
-
-
+from utility import brkpt, warn
 
 # =============================================================
 # Instalar dependencias
@@ -34,7 +33,6 @@ use_absorbing = False
 
 # al inicio del script
 PREFIX = "loudspeaker_databases/dibirama_LOUDSPEAKER_DB/"
-
 
 # =============================================================
 
@@ -218,24 +216,63 @@ class SpeakerEvaluator:
 
         return sorted(resultados, key=lambda x: x["error"])[:howManySpeakersToShow]
 
-# =============================================================
-# Cargar base de datos y evaluar
-# =============================================================
 # Cargar base de datos según fuente seleccionada
-# =============================================================
-# Cargar base de datos y evaluar
-# =============================================================
-# Cargar base de datos según fuente seleccionada
+
 if getattr(user, "DATA_SOURCE", "LSDB").upper() == "LSDB":
     df = pd.read_csv("loudspeaker_databases/LoudspeakerDatabase_v2.tsv", sep="\t")
     df["Path_TS"] = ""
     df["Path_FRD"] = ""
+    
 else:
     # DIBIRAMA: construir df desde el índice TS↔FRD emitido por pair_data_paths.py
     BASE_DB = Path("loudspeaker_databases/dibirama_LOUDSPEAKER_DB")
+    assert BASE_DB.exists(), f"BASE_DB no existe: {BASE_DB.resolve()}"
+
     idx_path = None
-    xlsx_candidate = Path(getattr(user, "DIBIRAMA_INDEX_XLSX", "indice_TS_FRD.xlsx"))
-    csv_candidate  = Path(getattr(user, "DIBIRAMA_INDEX_CSV",  "indice_TS_FRD.csv"))
+    #df = pd.DataFrame()
+
+
+    # 3) Normalizador de rutas con base en el índice
+    def fix_path(p: str | os.PathLike | None):
+        s = str(p or "").strip().strip('"').replace("\\", "/")
+        if not s:
+            return None
+        P = Path(s)
+        if P.is_absolute():
+            return P
+
+        # 1) Caso general: relativo a la raíz del proyecto
+        cand0 = (BASE_ROOT / P)
+        if cand0.exists():
+            return cand0.resolve()
+
+        # 2) Relativo al directorio del índice (por si el índice vive en otro sitio)
+        cand1 = (BASE_IDX_DIR / P)
+        if cand1.exists():
+            return cand1.resolve()
+
+        # 3) Si ya incluye 'loudspeaker_databases/', resuélvelo desde la raíz del proyecto
+        if s.startswith("loudspeaker_databases/"):
+            cand2 = (BASE_ROOT / s)
+            if cand2.exists():
+                return cand2.resolve()
+
+        # 4) Si empieza en 'dibirama_LOUDSPEAKER_DB/', asúmelo bajo 'loudspeaker_databases/'
+        if s.startswith("dibirama_LOUDSPEAKER_DB/"):
+            cand3 = (BASE_ROOT / "loudspeaker_databases" / s)
+            if cand3.exists():
+                return cand3.resolve()
+
+        # Fallback: devuelve cand0 aunque no exista, para que el WARN muestre una ruta útil (sin duplicados)
+        return cand0.resolve()
+
+    # reemplaza los defaults
+    xlsx_candidate = Path(getattr(user, "DIBIRAMA_INDEX_XLSX", "loudspeaker_databases/indice_TS_FRD.xlsx"))
+    csv_candidate  = Path(getattr(user, "DIBIRAMA_INDEX_CSV",  "loudspeaker_databases/indice_TS_FRD.csv"))
+    
+    
+
+
     if xlsx_candidate.exists():
         idx_path = xlsx_candidate
         idx = pd.read_excel(idx_path)
@@ -244,9 +281,43 @@ else:
         idx = pd.read_csv(idx_path)
     else:
         idx = pd.DataFrame(columns=["Modelo_base","Categoria_FRD","Ruta_TS","Ruta_FRD"])
+                
+    if idx_path is None:
+        BASE_IDX_DIR = BASE_DB.resolve()
+    else:
+        BASE_IDX_DIR = (idx_path.parent if idx_path.is_file() else idx_path).resolve()
+            
+    BASE_ROOT = BASE_IDX_DIR.parent if BASE_IDX_DIR.name == "loudspeaker_databases" else BASE_IDX_DIR
+    
+    warn(f"[IDX] usando: {idx_path if idx_path else '(no encontrado, usando DataFrame vacío)'}",True)
+    warn(f"[BASE_IDX_DIR] = {BASE_IDX_DIR}",True)
+    warn(f"[IDX] filas={len(idx)} | cols={list(idx.columns)}",True)
+    
+    if False:
+        print("\n[CHECK RUTAS] ejemplo (5):")
+        for _, row in idx.head(5).iterrows():
+            ts_raw  = str(row.get("Ruta_TS","")).strip()
+            frd_raw = str(row.get("Ruta_FRD","")).strip()
+            ts_abs  = fix_path(ts_raw) if ts_raw else None
+            frd_abs = fix_path(frd_raw) if frd_raw else None
+            print(f" - {row.get('Modelo_base','?')}"
+                f"\n   TS: {ts_raw} -> {ts_abs} | existe={bool(ts_abs and ts_abs.exists())}"
+                f"\n   FRD:{(' ' + frd_raw) if frd_raw else ' (vacío)'} -> {frd_abs if frd_abs else ''} | existe={bool(frd_abs and frd_abs.exists())}")
 
+    ts_existen  = sum(bool(fix_path(p) and fix_path(p).exists()) for p in idx["Ruta_TS"].astype(str))
+    frd_existen = sum(bool(fix_path(p) and fix_path(p).exists()) for p in idx["Ruta_FRD"].astype(str))
+    warn(f"[RESUMEN] TS que existen: {ts_existen} / {len(idx)} | FRD que existen: {frd_existen} / {len(idx)}")
+
+
+    
     # Filtrar filas válidas (con TS presente)
+    
     idx = idx[(idx["Ruta_TS"].notna()) & (idx["Ruta_TS"].ne(""))]
+    warn(f"[IDX] válidas con Ruta_TS no vacío: {len(idx)}") # Hasta aquí todo bien 
+
+    dbg = {"ok":0, "ts_no_resuelto":0, "ts_no_existe":0, "leer_hoja_error":0, "faltan_TS":0}
+    muestras = 0
+    
 
     TYPE_MAP = {
         "WOOFER_files":     "Woofer",
@@ -267,23 +338,35 @@ else:
             return float("nan")
 
     
-    for _, r in idx.iterrows():
-        ruta_rel = str(r["Ruta_TS"])
-        p_rel = Path(ruta_rel)
-        xlsx_abs = p_rel if p_rel.is_absolute() else (BASE_DB / p_rel)
-        if not xlsx_abs.exists():
+    for _, row in idx.iterrows():
+        #ruta_rel = str(r["Ruta_TS"])
+        #p_rel = Path(ruta_rel)
+                        
+        xlsx_abs = fix_path(row.get("Ruta_TS", ""))
+        warn(xlsx_abs)
+        
+        
+        if not xlsx_abs or not xlsx_abs.exists():
+            warn(f"TS no existe: '{row.get('Ruta_TS')}' -> '{xlsx_abs}'")
             continue
 
+        frd_abs = fix_path(row.get("Ruta_FRD", ""))
+        path_ts_str  = xlsx_abs.as_posix()
+        path_frd_str = frd_abs.as_posix() if (frd_abs and frd_abs.exists()) else ""
+
+
+        
         # 1) Intento con hoja preferida; 2) fallback a la primera hoja disponible
         sheet_pref = getattr(user, "DIBIRAMA_SHEET", None)
         try:
-            ts_SI = read_ts_xlsx(str(xlsx_abs), sheet_name=sheet_pref)
+            ts_SI = read_ts_xlsx(xlsx_abs.as_posix(), sheet_name=sheet_pref)
         except Exception:
             try:
                 sheets = pd.ExcelFile(xlsx_abs).sheet_names
-                ts_SI = read_ts_xlsx(str(xlsx_abs), sheet_name=(sheets[0] if sheets else None))
+                ts_SI = read_ts_xlsx(xlsx_abs.as_posix(), sheet_name=(sheets[0] if sheets else None))
             except Exception:
                 continue
+
 
         # --- DESPUÉS (simple, con fallback básico) ---
         Vas_m3 = float(ts_SI.get("Vas_m3") or 0)
@@ -301,16 +384,17 @@ else:
         if not (Vas_m3 > 0 and Qes > 0 and D_m > 0):
             continue
 
-        model = str(r.get("Modelo_base", xlsx_abs.stem)).replace("Parametri", "").replace("parametri", "").strip()
-        cat_raw = str(r.get("Categoria_FRD", "") or "")
+        model = str(row.get("Modelo_base", xlsx_abs.stem)).replace("Parametri", "").replace("parametri", "").strip()
+        cat_raw = str(row.get("Categoria_FRD", "") or "")
         tipo = TYPE_MAP.get(cat_raw, "Woofer")
         
         # ya tienes: xlsx_abs
-        frd_rel = str(r.get("Ruta_FRD", "") or "")
-        p_frd_rel = Path(frd_rel)
-        frd_abs = p_frd_rel if p_frd_rel.is_absolute() else (BASE_DB / p_frd_rel)
-        path_ts_str  = str(xlsx_abs)                       # existe por construcción
-        path_frd_str = str(frd_abs) if frd_abs.exists() else ""
+        #frd_rel = str(r.get("Ruta_FRD", "") or "")
+        #p_frd_rel = Path(frd_rel)
+        #frd_abs = Path(str(r.get("Ruta_FRD", "")).strip())
+        
+        path_ts_str  = xlsx_abs.as_posix()
+        path_frd_str = frd_abs.as_posix() if frd_abs.exists() else ""
         
         def _to_mH(x):
             try:
@@ -335,18 +419,7 @@ else:
         elif "Mms [g]" in ts_SI and pd.notna(ts_SI["Mms [g]"]):
             Mms_g = float(ts_SI["Mms [g]"])
         elif "Mms_kg" in ts_SI and pd.notna(ts_SI["Mms_kg"]):
-            Mms_g = float(ts_SI["Mms_kg"]) * 1000.0
-            
-        """
-        Le_mH      = _to_mH(ts_SI.get("Le_1k_H", ts_SI.get("Le_H")))
-        Le_10k_mH  = _to_mH(ts_SI.get("Le_10k_H"))
-        Cms_uN     = (float(ts_SI["Cms_m_per_N"])*1e6) if ("Cms_m_per_N" in ts_SI and np.isfinite(ts_SI["Cms_m_per_N"])) else np.nan
-        Mms_g      = (float(ts_SI["Mms_kg"])*1000.0) if ("Mms_kg" in ts_SI and np.isfinite(ts_SI["Mms_kg"])) else (ts_SI.get("Mms_g") if np.isfinite(ts_SI.get("Mms_g", np.nan)) else np.nan)
-        VC_d_mm    = (float(ts_SI["VC_d_m"])*1e3) if ("VC_d_m" in ts_SI and np.isfinite(ts_SI["VC_d_m"])) else np.nan
-        Xmax_mm    = (float(ts_SI["Xmax_m"])*1e3) if ("Xmax_m" in ts_SI and np.isfinite(ts_SI["Xmax_m"])) else np.nan
-        n0_pct     = (float(ts_SI["n0_ratio"])*100.0) if ("n0_ratio" in ts_SI and np.isfinite(ts_SI["n0_ratio"])) else np.nan
-
-        """
+            Mms_g = float(ts_SI["Mms_kg"]) * 1000.0        
         
         # Derivados simples y alias (mínimo necesario)
         Cms_uN = (
@@ -438,15 +511,17 @@ else:
 evaluador = SpeakerEvaluator(Vb_m3)
 mejores = evaluador.ordenar_por_qtc(df)
 
-
 # --- reemplazo de la función ---
 def print_filter_summary():
+    
     if df is None or df.empty:
-        print("== No hay altavoces válidos tras la selección de fuente de datos.\n")
+        print(f"{colors.RED}== No hay altavoces válidos tras la selección de fuente de datos. ==\n{colors.RESET}")
         return pd.DataFrame(), 0
 
     source_label = (user.LSDB_CONTACT if getattr(user, "DATA_SOURCE", "LSDB").upper() == "LSDB"
                     else "Dibirama (índice TS↔FRD)")
+    
+    warn(f"SOURCE_LABEL: {source_label}")
 
     if filter_LowDriver_by_Type:
         tipos_lower = [t.lower() for t in filter_LowDriver_by_Type]
@@ -486,18 +561,13 @@ def print_filter_summary():
 
     return df, len(df)
 
-
-
-
-
-
 # =============================================================
 # Mostrar resultados
 print(f"== Dimensiones de la caja elegida: {alto_mm/10:.1f} × {ancho_mm/10:.1f} × {fondo_mm/10:.1f} [cm] ==")
 print(f"== Posición del tweeter desde la esquina superior izquierda: {user.tweeterPosition_mm[0]/10:.1f} × {user.tweeterPosition_mm[1]/10:.1f} [cm] ==")
 print(f"== Volumen resultante de la caja elegida: {Vb_m3*1000:.2f} L ==\n")
 
-SpeakerEvaluator.EdgeDiffraction(user.tweeterPosition_mm[0], user.tweeterPosition_mm[1])
+#SpeakerEvaluator.EdgeDiffraction(user.tweeterPosition_mm[0], user.tweeterPosition_mm[1])
 
 #print_filter_summary()
 
@@ -578,14 +648,25 @@ if run_Digitizer:= False:
     print("== Ventana de digitización abierta ==")
     sys.exit(app.exec())
 
-if run_Tesseract_OCR := False:
-    from ts_ocr_dats import extract_ts_from_image, export_dats_txt, export_vituixcad_driver, process_image_to_files
-    # 1) Obtener dict normalizado
-    ts = extract_ts_from_image("loudspeaker_databases/dibirama_LOUDSPEAKER_DB/FULLRANGE_files/audax_13lb25al/audax_13lb25al_par.jpg")  # {'Fs_Hz': (36.9,'Hz'), 'Re_Ohm': (6.3,'Ohm'), ...}
-    # 2) Escribir TXT estilo DATS
-    export_dats_txt(ts, "mi_driver.dats", meta={"Brand":"Dayton","Model":"RS180-8"})
-    # 3) Escribir driver VituixCAD
-    # export_vituixcad_driver(ts, "mi_driver.vituix.txt", meta={"Brand":"SB","Model":"SB17NRX2C30-8"})
+
+warn(f"DATA_SOURCE = {getattr(user, "DATA_SOURCE", "LSDB")}")
+warn(f"Filas en df: {len(df)}")
+
+if {"Path_TS","Path_FRD"}.issubset(df.columns):
+    ts_no_vacio  = df["Path_TS"].astype(str).str.strip().ne("").sum()
+    frd_no_vacio = df["Path_FRD"].astype(str).str.strip().ne("").sum()
+    warn(f"Path_TS no vacío: {ts_no_vacio} | Path_FRD no vacío: {frd_no_vacio}")
+
+    ts_existen  = sum(Path(p).exists() for p in df["Path_TS"].astype(str) if p.strip())
+    frd_existen = sum(Path(p).exists() for p in df["Path_FRD"].astype(str) if p.strip())
+    warn(f"Path_TS que existen: {ts_existen} | Path_FRD que existen: {frd_existen}")
+
+    warn(f"\nMuestra rápida:")
+    cols = [c for c in ["Model","Type","Path_TS","Path_FRD"] if c in df.columns]
+    warn(df[cols].head(5).to_string(index=False))
+else:
+    warn(f"Este origen no trae columnas Path_TS/Path_FRD (LSDB típico).")
+
 
 
 class SpeakerListWindow(QWidget):
@@ -622,6 +703,23 @@ class SpeakerListWindow(QWidget):
 
             label = " ".join(p for p in [f"{model}", z_str, di_str] if p)
             self.list_widget.addItem(label)
+            
+        warn(f"[Window] speakers recibidos: {len(speakers)}")
+        validos = [
+            s for s in speakers
+            if (str(s.get("Path_TS","")).strip() and Path(str(s.get("Path_TS"))).exists())
+            and (str(s.get("Path_FRD","")).strip() and Path(str(s.get("Path_FRD"))).exists())
+        ]
+        warn(f"[Window] con TS+FRD existentes: {len(validos)}")
+
+        # (opcional) muestra por qué se caen los primeros 5
+        for s in speakers[:5]:
+            ts = str(s.get("Path_TS","")).strip(); frd = str(s.get("Path_FRD","")).strip()
+            ts_ok  = bool(ts) and Path(ts).exists()
+            frd_ok = bool(frd) and Path(frd).exists()
+            if not (ts_ok and frd_ok):
+                warn(" -", s.get("Model","?"), "| TS_OK:", ts_ok, "| FRD_OK:", frd_ok)
+
         self.layout.addWidget(self.list_widget)
 
 
@@ -648,9 +746,9 @@ class SpeakerListWindow(QWidget):
             if self.screen() else QApplication.primaryScreen().availableGeometry())
         geo = self.geometry()
         frame = self.frameGeometry()
-        print(f"geom: {geo.width()}x{geo.height()} @ ({geo.x()},{geo.y()})")
-        print(f"frame: {frame.width()}x{frame.height()} @ ({frame.x()},{frame.y()})")
-        print(f"screen: {scr.width()}x{scr.height()} @ ({scr.x()},{scr.y()})")
+        warn(f"geom: {geo.width()}x{geo.height()} @ ({geo.x()},{geo.y()})")
+        warn(f"frame: {frame.width()}x{frame.height()} @ ({frame.x()},{frame.y()})")
+        warn(f"screen: {scr.width()}x{scr.height()} @ ({scr.x()},{scr.y()})")
 
     def resizeEvent(self, e):
         self.report_geometry(False)
@@ -810,9 +908,11 @@ class SpeakerListWindow(QWidget):
 # Para mostrar la ventana con los altavoces resultantes:
 # --- uso en la ventana (corrige los argumentos del constructor) ---
 df_filtrado, filtrados_dim = print_filter_summary()
+warn(df_filtrado)
+
 # === Exportar a CSV rápido para depuración ===
-df_filtrado.to_csv("debug_altavoces.csv", index=False)
-print("== Se exportó df_filtrado a debug_altavoces.csv ==")
+df_filtrado.to_csv("loudspeaker_databases/debug_altavoces.csv", index=False)
+warn("== Se exportó df_filtrado a debug_altavoces.csv ==")
 
 
 
