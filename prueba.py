@@ -289,9 +289,9 @@ else:
             
     BASE_ROOT = BASE_IDX_DIR.parent if BASE_IDX_DIR.name == "loudspeaker_databases" else BASE_IDX_DIR
     
-    warn(f"[IDX] usando: {idx_path if idx_path else '(no encontrado, usando DataFrame vacío)'}",True)
-    warn(f"[BASE_IDX_DIR] = {BASE_IDX_DIR}",True)
-    warn(f"[IDX] filas={len(idx)} | cols={list(idx.columns)}",True)
+    warn(f"[IDX] usando: {idx_path if idx_path else '(no encontrado, usando DataFrame vacío)'}")
+    warn(f"[BASE_IDX_DIR] = {BASE_IDX_DIR}")
+    warn(f"[IDX] filas={len(idx)} | cols={list(idx.columns)}")
     
     if False:
         print("\n[CHECK RUTAS] ejemplo (5):")
@@ -343,7 +343,7 @@ else:
         #p_rel = Path(ruta_rel)
                         
         xlsx_abs = fix_path(row.get("Ruta_TS", ""))
-        warn(xlsx_abs)
+        #warn(xlsx_abs)
         
         
         if not xlsx_abs or not xlsx_abs.exists():
@@ -572,7 +572,7 @@ print(f"== Volumen resultante de la caja elegida: {Vb_m3*1000:.2f} L ==\n")
 #print_filter_summary()
 
 
-if show_Qtc_sorting_results:=False:
+if show_Qtc_sorting_results:=True:
     howManySpeakersToShow = 3
     header = (
         f"{'Modelo':{25}} "
@@ -606,7 +606,7 @@ if show_Qtc_sorting_results:=False:
 
 # =============================================================
 # Mostrar detalles completos del mejor altavoz
-if show_BestSpeakerDetails := False:
+if show_BestSpeakerDetails := True:
     mejor = mejores[0]
     fila_original = df[(df["Brand"] == mejor["Brand"]) & (df["Model"] == mejor["Model"])].iloc[0]
     print("\n=== Todos los datos del mejor altavoz ===")
@@ -732,6 +732,11 @@ class SpeakerListWindow(QWidget):
         
         self.frd_plot = FRDPlot(self)
         self.layout.addWidget(self.frd_plot)
+        self.frd_plot.shade_enabled = True
+        self.frd_plot.shade_side = "right"   # o "left"
+        self.frd_plot.shade_alpha = 0.50
+        self.frd_plot.shade_color = "tab:blue"
+        
 
 
     # dentro de class SpeakerListWindow(QWidget):
@@ -873,6 +878,12 @@ class SpeakerListWindow(QWidget):
         self.details.setPlainText("\n".join(lines))
         frd_path = str(spk.get("Path_FRD", "")).strip()
         self.frd_plot.plot_frd(frd_path)
+        d_mm = fnum("Nominal diameter [mm]")
+        if np.isfinite(d_mm) and d_mm > 0:
+            fnull = SpeakerEvaluator.first_null_threshold_hz(d_mm/1000.0)
+            if np.isfinite(fnull) and 20 <= fnull <= 40000:
+                self.frd_plot.mark_fnull(fnull)
+
 
 
 

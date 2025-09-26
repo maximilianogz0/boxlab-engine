@@ -6,6 +6,9 @@ from tkinter import ttk
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator, FixedFormatter
+
 
 # ---------------------------------------------------------------------
 # Configuración de origen de datos
@@ -216,6 +219,28 @@ class App(tk.Tk):
 
         self.ax_mag.set_xscale("log")
         self.ax_ph.set_xscale("log")
+        
+        self.ax_mag.set_xlim(20, 20000)
+        self.ax_ph.set_xlim(20, 20000)
+
+        
+        # Definir ticks típicos de audio
+        xticks_audio = [20, 31.5, 40, 63, 80, 100, 125, 160, 200, 250, 315,
+                        400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500,
+                        3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000,
+                        20000]
+        xlabels_audio = [str(f) if f < 1000 else f"{int(f/1000)}k" for f in xticks_audio]
+
+        self.ax_mag.set_xticks(xticks_audio)
+        self.ax_mag.set_xticklabels(xlabels_audio)
+        self.ax_ph.set_xticks(xticks_audio)
+        self.ax_ph.set_xticklabels(xlabels_audio)
+
+        from matplotlib.ticker import LogLocator
+        minor = LogLocator(base=10, subs=(2, 3, 5))
+        self.ax_mag.xaxis.set_minor_locator(minor)
+        self.ax_ph.xaxis.set_minor_locator(minor)
+
 
         self._plot_driver_from_frd(self.driver1.get(), FRD_MAP_1, self.ax_mag, self.ax_ph, f"{self.driver1.get()}")
         self._plot_driver_from_frd(self.driver2.get(), FRD_MAP_2, self.ax_mag, self.ax_ph, f"{self.driver2.get()}")
