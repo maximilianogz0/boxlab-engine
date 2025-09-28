@@ -175,7 +175,7 @@ def brkpt(msg=""):
     print(f"\n{colors.RED}=== BREAKPOINT === {msg} ==={colors.RESET}\n")
     pass
 
-def warn(msg="", bypass_print=True):    
+def warn(msg="", bypass_print=False):    
     if bypass_print is not True:
         print(f"{colors.YELLOW}[WARN]{colors.RESET}\n{msg}\n")
         

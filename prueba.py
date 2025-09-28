@@ -7,13 +7,14 @@ import sys
 import utility as ut
 import user_settings_NEW as user
 from PyDigitizer.PyDigitizer_script import DigitizerWindow
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QListWidget, QTextEdit, QLabel
+from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
+                               QListWidget, QTextEdit, QLabel, QStyle, QSizePolicy)
 from PySide6.QtCore import Qt
 import math
 import ANSI_colors as colors
 from pathlib import Path
 from ts_reader import read_ts_xlsx
-from acoustics import FRDPlot, mag_limits_from_frd_paths
+from acoustics import FRDPlot, mag_limits_from_frd_paths, ImpedancePlot, z_limits_from_paths
 from utility import brkpt, warn
 
 # =============================================================
@@ -33,6 +34,7 @@ use_absorbing = False
 
 # al inicio del script
 PREFIX = "loudspeaker_databases/dibirama_LOUDSPEAKER_DB/"
+
 
 # =============================================================
 
@@ -287,7 +289,8 @@ else:
     else:
         BASE_IDX_DIR = (idx_path.parent if idx_path.is_file() else idx_path).resolve()
             
-    BASE_ROOT = BASE_IDX_DIR.parent if BASE_IDX_DIR.name == "loudspeaker_databases" else BASE_IDX_DIR
+    BASE_ROOT = BASE_IDX_DIR.parent if BASE_IDX_DIR.name == "loudspeaker_databases" else BASE_IDX_DIR    
+
     
     warn(f"[IDX] usando: {idx_path if idx_path else '(no encontrado, usando DataFrame vacío)'}")
     warn(f"[BASE_IDX_DIR] = {BASE_IDX_DIR}")
@@ -337,6 +340,41 @@ else:
         except Exception:
             return float("nan")
 
+    # === Índice de FRD en la carpeta de tweeters ===
+    #TWEETER_FRD_DIR = (BASE_ROOT / "loudspeaker_databases" / "dibirama_LOUDSPEAKER_DB" / "TWEETER_files")
+    TWEETER_FRD_DIR = (BASE_DB / "TWEETER_files").resolve()
+    warn(f"[TWEETER_FRD_DIR] = {TWEETER_FRD_DIR}")
+    
+    def _sanitize_name(s: str) -> str:
+        s = (s or "").lower()
+        # deja solo alfanumérico (sin espacios ni signos) para comparar robusto
+        return "".join(ch for ch in s if ch.isalnum())
+
+    # indexa todos los .frd/.txt (ajusta extensiones si usas otras)
+    TWEETER_FRD_LIST = []
+    if TWEETER_FRD_DIR.exists():
+        for p in TWEETER_FRD_DIR.rglob("*"):
+            if p.is_file() and p.suffix.lower() in (".frd", ".txt"):
+                TWEETER_FRD_LIST.append((_sanitize_name(p.stem), p))
+
+    # dict para matches exactos por stem saneado
+    TWEETER_FRD_INDEX = {stem: path for stem, path in TWEETER_FRD_LIST}
+
+    def find_tweeter_frd(brand: str, model: str) -> Path | None:
+        """Busca un FRD de tweeter por nombre de modelo (y marca) en TWEETER_files."""
+        keys = [_sanitize_name(model), _sanitize_name(f"{brand} {model}")]
+        # 1) match exacto
+        for k in keys:
+            if k in TWEETER_FRD_INDEX:
+                return TWEETER_FRD_INDEX[k]
+        # 2) match por 'contiene'
+        for k in keys:
+            cands = [p for stem, p in TWEETER_FRD_LIST if k and k in stem]
+            if cands:
+                return cands[0]
+        return None
+
+    
     
     for _, row in idx.iterrows():
         #ruta_rel = str(r["Ruta_TS"])
@@ -349,10 +387,26 @@ else:
         if not xlsx_abs or not xlsx_abs.exists():
             warn(f"TS no existe: '{row.get('Ruta_TS')}' -> '{xlsx_abs}'")
             continue
+        
+        # REEMPLAZA:
+        # frd_abs = fix_path(row.get("Ruta_FRD", ""))
+        # path_ts_str  = xlsx_abs.as_posix()
+        # path_frd_str = frd_abs.as_posix() if (frd_abs and frd_abs.exists()) else ""
 
+        # POR ESTO:
         frd_abs = fix_path(row.get("Ruta_FRD", ""))
+
+        # Si es tweeter y no viene FRD en el índice, intenta descubrirlo en TWEETER_files
+        if (not frd_abs or not frd_abs.exists()) and tipo == "Tweeter":
+            brand = str(row.get("Brand", "") or "-")
+            guessed = find_tweeter_frd(brand, model)
+            if guessed and guessed.exists():
+                frd_abs = guessed
+                warn(f"[TWEETER FRD] '{model}' → {frd_abs}")
+
         path_ts_str  = xlsx_abs.as_posix()
         path_frd_str = frd_abs.as_posix() if (frd_abs and frd_abs.exists()) else ""
+
 
 
         
@@ -567,12 +621,7 @@ print(f"== Dimensiones de la caja elegida: {alto_mm/10:.1f} × {ancho_mm/10:.1f}
 print(f"== Posición del tweeter desde la esquina superior izquierda: {user.tweeterPosition_mm[0]/10:.1f} × {user.tweeterPosition_mm[1]/10:.1f} [cm] ==")
 print(f"== Volumen resultante de la caja elegida: {Vb_m3*1000:.2f} L ==\n")
 
-#SpeakerEvaluator.EdgeDiffraction(user.tweeterPosition_mm[0], user.tweeterPosition_mm[1])
-
-#print_filter_summary()
-
-
-if show_Qtc_sorting_results:=True:
+if show_Qtc_sorting_results:=False:
     howManySpeakersToShow = 3
     header = (
         f"{'Modelo':{25}} "
@@ -601,12 +650,9 @@ if show_Qtc_sorting_results:=True:
         )
     print("-" * (len(header) + link_sheet_margin))
 
-
-
-
 # =============================================================
 # Mostrar detalles completos del mejor altavoz
-if show_BestSpeakerDetails := True:
+if show_BestSpeakerDetails := False:
     mejor = mejores[0]
     fila_original = df[(df["Brand"] == mejor["Brand"]) & (df["Model"] == mejor["Model"])].iloc[0]
     print("\n=== Todos los datos del mejor altavoz ===")
@@ -649,8 +695,8 @@ if run_Digitizer:= False:
     sys.exit(app.exec())
 
 
-warn(f"DATA_SOURCE = {getattr(user, "DATA_SOURCE", "LSDB")}")
-warn(f"Filas en df: {len(df)}")
+warn(f"DATA_SOURCE = {getattr(user, "DATA_SOURCE", "LSDB")}",True)
+warn(f"Filas en df de woofers: {len(df)}")
 
 if {"Path_TS","Path_FRD"}.issubset(df.columns):
     ts_no_vacio  = df["Path_TS"].astype(str).str.strip().ne("").sum()
@@ -661,30 +707,36 @@ if {"Path_TS","Path_FRD"}.issubset(df.columns):
     frd_existen = sum(Path(p).exists() for p in df["Path_FRD"].astype(str) if p.strip())
     warn(f"Path_TS que existen: {ts_existen} | Path_FRD que existen: {frd_existen}")
 
-    warn(f"\nMuestra rápida:")
+    warn(f"Muestra rápida:")
     cols = [c for c in ["Model","Type","Path_TS","Path_FRD"] if c in df.columns]
-    warn(df[cols].head(5).to_string(index=False))
+    print(df[cols].head(5).to_string(index=False))
 else:
     warn(f"Este origen no trae columnas Path_TS/Path_FRD (LSDB típico).")
 
 
 
 class SpeakerListWindow(QWidget):
-    def __init__(self, speakers, filtrados_dim):
+    def __init__(self, woofers, tweeters, filtrados_dim):
         super().__init__()
         self.setWindowTitle("Altavoces Seleccionables")
-        self.layout = QVBoxLayout(self)
+        
+        root = QHBoxLayout(self)
+        left = QVBoxLayout()
+        right = QVBoxLayout()
+        root.addLayout(left)
+        root.addLayout(right)
+        
+        self.layout = left  # alias para no tocar el código existente de la columna izquierda
+
         # después de: self.layout = QVBoxLayout(self)
-        speakers = [
-            s for s in speakers
-            if (str(s.get("Path_TS","")).strip() and Path(str(s.get("Path_TS"))).exists())
-            and (str(s.get("Path_FRD","")).strip() and Path(str(s.get("Path_FRD"))).exists())
+        woofers = [
+        s for s in woofers
+        if (str(s.get("Path_TS","")).strip() and Path(str(s.get("Path_TS"))).exists())
+        and (str(s.get("Path_FRD","")).strip() and Path(str(s.get("Path_FRD"))).exists())
         ]
+        self.speakers = woofers            # mantenemos el nombre para la columna izquierda                        
 
-        self.speakers = speakers
-
-
-        self.count_label = QLabel(f"Altavoces que cumplen parámetros ajustados: {len(self.speakers)}")
+        self.count_label = QLabel(f"Woofers que cumplen parámetros ajustados: {len(self.speakers)}")
         self.layout.addWidget(self.count_label)
 
         self.label = QLabel("Selecciona un altavoz:")
@@ -704,39 +756,172 @@ class SpeakerListWindow(QWidget):
             label = " ".join(p for p in [f"{model}", z_str, di_str] if p)
             self.list_widget.addItem(label)
             
-        warn(f"[Window] speakers recibidos: {len(speakers)}")
-        validos = [
-            s for s in speakers
+        warn(f"[Window] speakers recibidos: {len(woofers)}")
+        woofers_validos = [
+            s for s in woofers
             if (str(s.get("Path_TS","")).strip() and Path(str(s.get("Path_TS"))).exists())
             and (str(s.get("Path_FRD","")).strip() and Path(str(s.get("Path_FRD"))).exists())
         ]
-        warn(f"[Window] con TS+FRD existentes: {len(validos)}")
-
-        # (opcional) muestra por qué se caen los primeros 5
-        for s in speakers[:5]:
+        warn(f"[Window] con TS+FRD existentes: {len(woofers_validos)}")        
+        for s in woofers[:5]:
             ts = str(s.get("Path_TS","")).strip(); frd = str(s.get("Path_FRD","")).strip()
             ts_ok  = bool(ts) and Path(ts).exists()
             frd_ok = bool(frd) and Path(frd).exists()
             if not (ts_ok and frd_ok):
                 warn(" -", s.get("Model","?"), "| TS_OK:", ts_ok, "| FRD_OK:", frd_ok)
-
+        
         self.layout.addWidget(self.list_widget)
 
+        # --- bloque WOOFER: título + detalles + plot, TODO junto ---
+        self.plotbox_w = QVBoxLayout()
+        self.plotbox_w.setContentsMargins(0, 0, 0, 0)
+        self.plotbox_w.setSpacing(4)
+
+        self.title_w = QLabel("")
+        self.title_w.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.title_w.setWordWrap(True)
 
         self.details = QTextEdit()
         self.details.setReadOnly(True)
-        self.layout.addWidget(self.details)
+        self.details.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.details.setMaximumHeight(110)  # ajusta a gusto
 
-        self.list_widget.currentRowChanged.connect(self.show_details)
-        #self.speakers = speakers
-        
         self.frd_plot = FRDPlot(self)
-        self.layout.addWidget(self.frd_plot)
         self.frd_plot.shade_enabled = True
-        self.frd_plot.shade_side = "right"   # o "left"
+        self.frd_plot.shade_side = "right"
         self.frd_plot.shade_alpha = 0.50
         self.frd_plot.shade_color = "tab:blue"
+        #self.frd_plot._fnull_label = "Woofer_1st_Null"   # ← NUEVO
+
+
+        self.z_plot = ImpedancePlot(self)
+        self.layout.addWidget(self.z_plot)
+        self.z_plot.shade_enabled = True
+        self.z_plot.shade_side = "right"
+        self.z_plot.shade_alpha = 0.50
+        self.z_plot.shade_color = "tab:blue"
+        #self.frd_plot._fnull_label = "Woofer_1st_Null"   # ← NUEVO
+
+
+
+        self.plotbox_w.addWidget(self.title_w)
+        self.plotbox_w.addWidget(self.details)
+        self.plotbox_w.addWidget(self.frd_plot, 1)
+        self.plotbox_w.addWidget(self.z_plot, 1)        
+        self.layout.addLayout(self.plotbox_w)
         
+        # Impedancia (|Z| + fase) debajo del FRD
+        '''
+        self.z_plot = ImpedancePlot(self)
+        self.z_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.z_plot.setMaximumHeight(220)            # ajusta si quieres menos alto
+        self.plotbox_w.addWidget(self.z_plot)
+        '''
+
+        # Limitar la lista
+        self.list_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.list_widget.setMaximumHeight(500)
+        #self.frd_plot.canvas.setFixedHeight(45)      # asegura que Matplotlib respete
+
+
+
+
+        self.list_widget.currentRowChanged.connect(lambda i: self.show_details(i, side='w'))
+        # Izquierda (woofers)
+        self._fit_list_width(self.list_widget, self.details,
+                            factor=1.25, extra_chars=12, min_px=380)        
+        self.list_widget.setCurrentRow(0)  # selecciona el primero por defecto
+        
+        
+        
+        # =========================
+        # DERECHA (TWEETERS)
+        # =========================
+        self.layout_t = right
+
+        # Filtrado de tweeters con TS+FRD existentes
+        tweeters = [
+            s for s in tweeters
+            if (str(s.get("Path_TS","")).strip() and Path(str(s.get("Path_TS"))).exists())
+            and (str(s.get("Path_FRD","")).strip() and Path(str(s.get("Path_FRD"))).exists())
+        ]
+        self.speakers_t = tweeters
+
+        self.count_label_t = QLabel(f"Tweeters que cumplen parámetros: {len(self.speakers_t)}")
+        self.layout_t.addWidget(self.count_label_t)
+
+        self.label_t = QLabel("Selecciona un tweeter:")
+        self.layout_t.addWidget(self.label_t)
+
+        self.list_widget_t = QListWidget()
+        for spk in self.speakers_t:
+            model = spk.get("Model", "-")
+            z = spk.get("Z_ohm", None)
+            z_str = "" if (z is None or pd.isna(z) or float(z) <= 0) else f"{int(float(z))} Ω"
+            di = spk.get("Nominal diameter [″]", None)
+            di_str = "" if (di is None or pd.isna(di) or float(di) <= 0) else f"({float(di):.1f}\")"
+            label = " ".join(p for p in [f"{model}", z_str, di_str] if p)
+            self.list_widget_t.addItem(label)
+        self.layout_t.addWidget(self.list_widget_t)
+
+        self.details_t = QTextEdit()
+        self.details_t.setReadOnly(True)
+        self.layout_t.addWidget(self.details_t)
+
+        # Conexión a show_details con side='t'
+        #self.list_widget_t.currentRowChanged.connect(lambda i: self.show_details(i, side='t'))
+
+        # Ajustar anchos de lista y panel de detalles (derecha)
+        self._fit_list_width(self.list_widget_t, self.details_t)
+
+        # Seleccionar el primero por defecto (si hay)
+        if self.list_widget_t.count() > 0:
+            self.list_widget_t.setCurrentRow(0)
+
+        # Plot a la derecha para tweeters
+        self.frd_plot_t = FRDPlot(self)
+        self.layout_t.addWidget(self.frd_plot_t)
+        self.frd_plot_t.shade_enabled = True
+        self.frd_plot_t.shade_side = "right"
+        self.frd_plot_t.shade_alpha = 0.50
+        self.frd_plot_t.shade_color = "tab:blue"
+        
+        self.list_widget_t.currentRowChanged.connect(lambda i: self.show_details(i, side='t'))
+        # Derecha (tweeters)
+        self._fit_list_width(self.list_widget_t, self.details_t,
+                            factor=1.25, extra_chars=12, min_px=380)
+        if self.list_widget_t.count() > 0:
+            self.list_widget_t.setCurrentRow(0)
+        
+    def _fit_list_width(self, listw, details, *, factor=1.20, extra_chars=10, min_px=360, force_px=None):
+        fm = listw.fontMetrics()
+        max_text_w = max(
+            (fm.horizontalAdvance(listw.item(i).text())
+            for i in range(listw.count())),
+            default=0
+        )
+
+        m = listw.contentsMargins()
+        frame = 2 * listw.frameWidth()
+        scroll_w = listw.style().pixelMetric(QStyle.PM_ScrollBarExtent)
+        padding = 12
+
+        # “Ancho por texto” original
+        base_w = max_text_w + m.left() + m.right() + frame + scroll_w + padding
+
+        # Extras: multiplicador + caracteres virtuales
+        char_w = fm.horizontalAdvance("M") or fm.averageCharWidth() or 8
+        widened = int(base_w * float(factor)) + int(extra_chars * char_w)
+
+        # Forzado absoluto si lo quieres (opcional)
+        width = force_px if force_px is not None else max(widened, int(min_px))
+
+        listw.setFixedWidth(width)
+        if details is not None:
+            details.setFixedWidth(width)
+
+
+
 
 
     # dentro de class SpeakerListWindow(QWidget):
@@ -765,12 +950,24 @@ class SpeakerListWindow(QWidget):
 
     
     
-    def show_details(self, idx):
-        if idx < 0 or idx >= len(self.speakers):
-            self.details.setText("")
+    def show_details(self, idx, side='w'):
+        if side == 't':
+            speakers = self.speakers_t
+            details  = self.details_t
+            frd_plot = self.frd_plot_t
+            kind     = "Tweeter"
+        else:
+            speakers = self.speakers
+            details  = self.details
+            frd_plot = self.frd_plot
+            kind     = "Woofer"
+
+        if idx < 0 or idx >= len(speakers):
+            details.setText("")
             return
 
-        spk = self.speakers[idx]
+        spk = speakers[idx]
+
 
         def fnum(key, default=np.nan):
             v = spk.get(key, default)
@@ -795,6 +992,17 @@ class SpeakerListWindow(QWidget):
         # Diámetro en pulgadas a pasos de 0.5
         d_in = fnum("Nominal diameter [″]")
         diam_disp = f'{(round(d_in * 2) / 2):.1f}"' if np.isfinite(d_in) else "—"
+        title = f"{kind}: \n{spk.get('Model','?')} ({diam_disp} - {z_disp})".strip()
+        if side == 't':
+            self.title_t.setText(title)
+        else:
+            self.title_w.setText(title)
+
+        # (opcional) si FRDPlot también pinta un título interno, lo vaciamos para no duplicar
+        #if hasattr(frd_plot, "set_title"):
+        #    frd_plot.set_title("")
+
+
 
         # Sd (1 decimal)
         sd = fnum("Sd_cm2")
@@ -851,10 +1059,10 @@ class SpeakerListWindow(QWidget):
             pos = s.lower().find(PREFIX.lower())
             return s[pos+len(PREFIX):] if pos != -1 else s
 
-        lines = [
-            f"Model: {spk.get('Model')}",
-            f"{diam_disp} - {z_disp}",            
-            "",
+        lines = [            
+            #f"Model: {spk.get('Model')}",
+            #f"{diam_disp} - {z_disp}",            
+            #"",
             f"Re: {re_disp}",
             f"Sd: {sd_disp}",
             f"fs: {fs_disp}",
@@ -875,36 +1083,54 @@ class SpeakerListWindow(QWidget):
             f"Path_TS: {trim_path('Path_TS')}",
             f"Path_FRD: {trim_path('Path_FRD')}",
         ]
-        self.details.setPlainText("\n".join(lines))
+        details.setPlainText("\n".join(lines))
         frd_path = str(spk.get("Path_FRD", "")).strip()
-        self.frd_plot.plot_frd(frd_path)
+        frd_plot.plot_file(frd_path)
+        
+        # intentar derivar el archivo de impedancia: "<modelo> - Z.txt" en la misma carpeta
+        z_path = str(spk.get("Path_Z","") or "").strip()
+        if not z_path:
+            try:
+                p = Path(frd_path)
+
+                if p.exists():
+                    # candidato directo: mismo stem con sufijo " - Z"
+                    cand = p.with_name(p.stem.split(" - ")[0] + " - Z" + p.suffix)
+                    if cand.exists():
+                        z_path = cand.as_posix()
+                    else:
+                        # fallback: cualquiera que termine en " - Z.*" en la carpeta
+                        cands = list(p.parent.glob("* - Z.*"))
+                        if cands:
+                            z_path = cands[0].as_posix()
+            except Exception:
+                pass
+
+        # dibuja si lo encontró
+        if side == 't':
+            self.z_plot_t.plot_file(z_path) if z_path else self.z_plot_t.clear("Sin Z")
+        else:
+            self.z_plot.plot_file(z_path) if z_path else self.z_plot.clear("Sin Z")
+
+        
         d_mm = fnum("Nominal diameter [mm]")
         if np.isfinite(d_mm) and d_mm > 0:
             fnull = SpeakerEvaluator.first_null_threshold_hz(d_mm/1000.0)
             if np.isfinite(fnull) and 20 <= fnull <= 40000:
-                self.frd_plot.mark_fnull(fnull)
+                frd_plot.mark_fnull(fnull)
+                
+            # También sombrea la impedancia en la misma f_null
+                if side == 't' and hasattr(self, "z_plot_t"):
+                    self.z_plot_t.mark_fnull(fnull)
+                elif hasattr(self, "z_plot"):
+                    self.z_plot.mark_fnull(fnull)
 
 
 
 
 
-        # lines = []
-        # for k in main_keys:
-        #     if k in spk:
-        #         lines.append(f"{k}: {spk[k]}")        
-        # self.details.setPlainText("\n".join(lines))
-        
-        # for k in ("Path_TS", "Path_FRD"):
-        #     s_raw = str(spk.get(k, ""))
-        #     if not s_raw:
-        #         continue
-        #     s = s_raw.replace("\\", "/")
-        #     pos = s.lower().find(PREFIX.lower())
-        #     shown = s[pos+len(PREFIX):] if pos != -1 else s
-        #     lines.append(f"{k}: {shown}")
 
 
-        
     # en SpeakerListWindow
     def snap_right_fullheight(self):
         scr = QApplication.primaryScreen().availableGeometry()
@@ -919,35 +1145,90 @@ class SpeakerListWindow(QWidget):
 # Para mostrar la ventana con los altavoces resultantes:
 # --- uso en la ventana (corrige los argumentos del constructor) ---
 df_filtrado, filtrados_dim = print_filter_summary()
-warn(df_filtrado)
+warn(df_filtrado,True)
+
+df_tweeters = df[df["Type"].fillna("").str.lower().eq("tweeter")].copy()
+df_tweeters = df_tweeters[
+    df_tweeters["Path_TS"].astype(str).str.strip().ne("") &
+    df_tweeters["Path_FRD"].astype(str).str.strip().ne("")
+]
+
+warn(df_tweeters)
 
 # === Exportar a CSV rápido para depuración ===
 df_filtrado.to_csv("loudspeaker_databases/debug_altavoces.csv", index=False)
 warn("== Se exportó df_filtrado a debug_altavoces.csv ==")
 
 
-
-
-
-
 if visual_check_image := True:
     app = QApplication(sys.argv)
-    window = SpeakerListWindow(df_filtrado.to_dict(orient="records"), filtrados_dim)
+    window = SpeakerListWindow(
+        df_filtrado.to_dict(orient="records"),
+        df_tweeters.to_dict(orient="records"),
+        filtrados_dim
+    )
 
-    # calcular y-lims usando solo los FRD visibles y existentes
-    frd_paths_visibles = [
+    
+
+        # calcular y-lims usando solo los FRD visibles y existentes (WOOFERS)
+    frd_paths_w = [
         str(s.get("Path_FRD")) for s in window.speakers
         if s.get("Path_FRD") and Path(str(s.get("Path_FRD"))).exists()
     ]
-    ylims = mag_limits_from_frd_paths(frd_paths_visibles)
-    if ylims:
-        window.frd_plot.set_fixed_ylim(*ylims)
+    ylims = mag_limits_from_frd_paths(frd_paths_w)
 
+    # === NUEVO: y-lims para TWEETERS ===
+    frd_paths_t = [
+        str(s.get("Path_FRD")) for s in window.speakers_t
+        if s.get("Path_FRD") and Path(str(s.get("Path_FRD"))).exists()
+    ]
+    
+    def _guess_z_path(frd_path: str) -> str:
+        try:
+            p = Path(frd_path)
+            if not p.exists():
+                return ""
+            cand = p.with_name(p.stem.split(" - ")[0] + " - Z" + p.suffix)
+            if cand.exists():
+                return cand.as_posix()
+            cands = list(p.parent.glob("* - Z.*"))
+            return cands[0].as_posix() if cands else ""
+        except Exception:
+            return ""
+
+    
+    ylims_t = mag_limits_from_frd_paths(frd_paths_t)
+
+    # === Límites globales para impedancia (min 0) ===
+    z_paths_w = [_guess_z_path(p) for p in frd_paths_w]
+    z_paths_t = [_guess_z_path(p) for p in frd_paths_t]
+    zlims     = z_limits_from_paths(z_paths_w)
+    zlims_t   = z_limits_from_paths(z_paths_t)
+
+    if zlims:
+        window.z_plot.set_fixed_ylim(*zlims)
+    if zlims_t:
+        window.z_plot_t.set_fixed_ylim(*zlims_t)
+
+
+    # === Sincronizar y-lims entre woofer y tweeter (opcional) ===
+    if ylims and ylims_t:
+        lo = min(ylims[0], ylims_t[0])
+        hi = max(ylims[1], ylims_t[1])
+        window.frd_plot.set_fixed_ylim(lo, hi)
+        window.frd_plot_t.set_fixed_ylim(lo, hi)
+    elif ylims:
+        window.frd_plot.set_fixed_ylim(*ylims)
+    elif ylims_t:
+        window.frd_plot_t.set_fixed_ylim(*ylims_t)
+
+    # y luego recién:
     window.resize(335, 400)
-    window.snap_right_fullheight()     # fija posición y alto
-    window.set_always_on_top(True)     # stay on top
-    window.report_geometry(False)      # reporta geometría inicial
+    window.snap_right_fullheight()
+    window.set_always_on_top(False)
+    window.report_geometry(False)
     window.show()
+
     print(f"\n{colors.GREEN}== Ventana de altavoces abierta... =={colors.RESET} \n")
     sys.exit(app.exec())
 
