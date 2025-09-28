@@ -48,7 +48,6 @@ class ThieleSmall:
         self.Vb_init = Vas_L
         self.ID = None
         
-
         # Parámetros calculados (placeholder)
         self.alpha = None
         self.ws_radS = None
@@ -57,8 +56,6 @@ class ThieleSmall:
         self.wc_radS = None
         self.Vab_m3 = None
         self.Vb_m3 = None
-
-
         
         # Tabla de valores con rangos abiertos para Vb
         
@@ -66,12 +63,7 @@ class ThieleSmall:
             (0, 20): [0.8, 1.0],     # Si Vb < 20, valores [0.8, 1.0]
             (20, 200): [1.5, 2.0],   # Si 20 < Vb < 200, valores [1.5, 2.0]
             (200, 2000): [2.5, 3.0]  # Si Vb > 200, valores [2.5, 3.0]
-        }
-
-        
-        # Calcular parámetros adicionales
-        # ThieleSmall._calcular_parametros(self)
-        
+        }       
 
     def _calcular_parametros(self):
         self.ws_radS = 2 * np.pi * self.Fs_Hz
@@ -96,10 +88,7 @@ class ThieleSmall:
             print(f"""
                 Para probar --_calcular_parametros()--:
                 Qes: está asignado a {self.Qes}
-                """)
-        
-        
-
+                """)        
 
     def calc_Qec(self):
         Qmc = 7.5        
@@ -128,8 +117,6 @@ class ThieleSmall:
         print(f'Inductancia (Le): \t{self.Le_mH * 1e-6} H')
         print(f'Desplazamiento máximo (Xmax): \t{self.Xmax_mm} mm')
         print()
-
-
      
     def display_user_settings(self):
         print("---- Parámetros del Usuario ----")
@@ -165,50 +152,67 @@ class ThieleSmall:
             return 2 if user.useAbsorbing else 5
         return None  # Si Vb no se encuentra en ningún rango, retornar None
     
+    
+    
+
+Qtc_range = [0.5, 1.1] # [Amortiguamiento crítico , C2 Chebyshev]
+
+def volumen_interior_L(ancho_ext_mm, alto_ext_mm, prof_ext_mm, espesor_mm):
+    ancho_int = ancho_ext_mm - 2 * espesor_mm
+    alto_int = alto_ext_mm - 2 * espesor_mm
+    prof_int = prof_ext_mm - 2 * espesor_mm
+
+    if any(x <= 0 for x in [ancho_int, alto_int, prof_int]):
+        raise ValueError("Una o más dimensiones interiores son negativas o cero.")
+
+    volumen_mm3 = ancho_int * alto_int * prof_int
+    volumen_L = volumen_mm3 / 1_000_000  # mm³ a litros
+    return volumen_L
+
+
         
 class boxDimensions:
     
-    # wood_thickness_m = user.wood_thickness_mm / 1000  # Convertimos el espesor a metros
-
     def __init__(self, Speaker):                
-        self.speaker = Speaker
+        self.speaker = Speaker       
         
-        # Validar configuraciones del usuario
-        if not hasattr(user, 'ratioDims') or len(user.ratioDims) != 3:
-            raise ValueError("user.ratioDims debe ser una lista o tupla con tres valores.")
-        if not hasattr(user, 'wood_thickness_mm'):
-            raise ValueError("user.wood_thickness_mm no está definido.")
-        if not hasattr(user, 'areInteriorDims'):
-            raise ValueError("user.areInteriorDims no está definido.")
+        self.ancho_ext_mm     = user.boxDims[0]
+        self.prof_ext_mm      = user.boxDims[2]
+        self.alto_ext_mm      = user.boxDims[1]
+        self.espesor_mm       = user.wood_thickness_mm       
         
-        
-        # ThieleSmall._calcular_parametros(Speaker)        
-        #self.wood_thickness_m = user.wood_thickness_mm / 1000  # Convertimos el espesor a metros
-        self.ratioDims = user.ratioDims
-        self.areInteriorDims = user.areInteriorDims
-        #self.Vb_m3 = None
-        
-         # Inicializar medidas de cada plancha
-        self.frontal_posterior_m = None
-        self.superior_inferior_m = None
-        self.lateral_m = None
-        
-        self.Vb_m3 = self.calcular_Vb_m3(self.speaker)
-
-
-        
-        # Calcular dimensiones de cada plancha
-        # self.calcular_dimensiones_plancha()
+        self.Vb_m3 = self.calcular_Vb_m3()
     
-    def calcular_Vb_m3(self, Speaker:ThieleSmall):
-        if Speaker.Vab_m3 is None:
-            print("Error: Vab_m3 no está configurado.")
-        
-        if Speaker._volumen_altavoz_L is None:
-            print("Error: Volumen de altavoz no calculado.")        
-                
-        self.Vb_m3 = Speaker.Vab_m3 + Speaker._volumen_altavoz_L() * (1 / 1.25 if user.useAbsorbing else 1)
-        return self.Vb_m3
+    def calcular_Vb_m3(self):
+        ancho_int = self.ancho_ext_mm - 2 * self.espesor_mm
+        alto_int  = self.alto_ext_mm - 2 * self.espesor_mm
+        prof_int  = self.prof_ext_mm - 2 * self.espesor_mm
+
+        if any(x <= 0 for x in [ancho_int, alto_int, prof_int]):
+            raise ValueError("Una o más dimensiones interiores son negativas o cero.")
+
+        volumen_mm3 = ancho_int * alto_int * prof_int
+        return volumen_mm3 / 1_000_000_000  # mm³ a m³
+    
+    def display_parameters(self):
+        ancho_int = self.ancho_ext_mm - 2 * self.espesor_mm
+        alto_int  = self.alto_ext_mm - 2 * self.espesor_mm
+        prof_int  = self.prof_ext_mm - 2 * self.espesor_mm
+
+        print("DIMENSIONES DE LA CAJA:")
+        print()
+        print(f"  Espesor madera:      {self.espesor_mm} mm")        
+        print()
+        print(f"  Ancho exterior:      {self.ancho_ext_mm} mm")
+        print(f"  Alto exterior:       {self.alto_ext_mm} mm")
+        print(f"  Profundidad exterior:{self.prof_ext_mm} mm")
+        print()
+        print(f"  Ancho interior:      {ancho_int} mm")
+        print(f"  Alto interior:       {alto_int} mm")
+        print(f"  Profundidad interior:{prof_int} mm")
+        print()
+        print(f"  Volumen interior:        {self.Vb_m3 * 1000:.3f} L")
+        print()
         
 
     def calcular_dimensiones_plancha(self,selected_speaker:ThieleSmall):        
@@ -233,6 +237,8 @@ class boxDimensions:
             self.frontal_posterior_m =  (ancho_base - 2*t,          alto_base - 2*t)
             self.lateral_m =            (profundidad_base - 2*t,    alto_base - 2*t)
             self.superior_inferior_m =  (ancho_base - 2*t,          profundidad_base - 2*t)
+
+
             
         # Redondear las dimensiones a 1 mm (0.001 m)
         self.frontal_posterior_m    = (round(1000 * self.frontal_posterior_m[0])/1000,  round(1000 * self.frontal_posterior_m[1])/1000)
@@ -251,32 +257,3 @@ class boxDimensions:
         print(f"Superior e Inferior:    {1000*self.superior_inferior_m[0]:.0f} mm x {1000*self.superior_inferior_m[1]:.0f} mm")
 
         print()
-
-""""        
-class PhysicalAttributes:
-    def __init__(self, Speaker):
-        self.speaker = Speaker
-        self.diam_mm = Speaker.diam_inch * 25.4  # Convertir pulgadas a milímetros
-        self.mounting_depth_mm = None  # Profundidad de montaje
-        self.frame_diameter_mm = None  # Diámetro del marco
-        self.cutout_diameter_mm = None  # Diámetro de recorte para instalar
-        self.calculate_dimensions()
-
-    def calculate_dimensions(self):
-        # Calcular algunos parámetros estándar según el diámetro del altavoz
-        self.mounting_depth_mm = round(self.diam_mm * 0.4, 1)  # Supongamos que es 40% del diámetro
-        self.cutout_diameter_mm = round(self.diam_mm * 0.9, 1)  # 10% menor al diámetro
-
-    def display_physical_attributes(self):
-        print("\n--- Atributos Físicos del Altavoz ---")
-        print(f"Diámetro del altavoz:       {self.diam_mm} mm")
-        print(f"Profundidad de montaje:     {self.mounting_depth_mm} mm")
-        print(f"Diámetro del marco:         {self.frame_diameter_mm} mm")
-        print(f"Diámetro de recorte:        {self.cutout_diameter_mm} mm")
-        print()
-
-
-
-
-
-"""
